@@ -327,29 +327,55 @@ const knownAssets = [
     renderAssets();
     saveCachedAssetDetails();
 
-    Promise.all(
-        remainingAssets.map(async (asset) => {
-            Object.assign(
-                asset,
-                await loadAsset(asset.address)
+   (async () => {
+    const batchSize = 8;
+
+    for (
+        let start = 0;
+        start < remainingAssets.length;
+        start += batchSize
+    ) {
+        const batch =
+            remainingAssets.slice(
+                start,
+                start + batchSize
             );
-        })
-    ).then(() => {
-        assets.sort((first, second) =>
-            first.symbol.localeCompare(second.symbol, undefined, {
-                numeric: true,
-                sensitivity: "base"
+
+        await Promise.all(
+            batch.map(async (asset) => {
+                Object.assign(
+                    asset,
+                    await loadAsset(
+                        asset.address
+                    )
+                );
             })
         );
-        filteredAssets = [...assets];
+
+        assets.sort((first, second) =>
+            first.symbol.localeCompare(
+                second.symbol,
+                undefined,
+                {
+                    numeric: true,
+                    sensitivity: "base"
+                }
+            )
+        );
+
+        filteredAssets = [
+            ...assets
+        ];
+
         renderAssets();
         saveCachedAssetDetails();
-    }).catch((error) => {
-        console.warn(
-            "Some asset details could not be loaded:",
-            error
-        );
-    });
+    }
+})().catch((error) => {
+    console.warn(
+        "Some asset details could not be loaded:",
+        error
+    );
+});
 }
 
 assetFilter.addEventListener("input", filterAssets);
