@@ -61,16 +61,15 @@ Set these environment variables:
 
 ```text
 KEETAVIEW_DATA_DIR=/data
-HISTORICAL_BACKFILL=true
+HISTORICAL_BACKFILL=false
 HISTORICAL_BACKFILL_INTERVAL_MINUTES=10
-
 ```
 
 Railway supplies `PORT` and `RAILWAY_ENVIRONMENT` automatically. KeetaView uses them to listen publicly on the assigned port.
 
 The persistent volume stores `keetascan.db`, its SQLite WAL files, the indexing state, and the database reset marker. Use a volume comfortably larger than the current database and maintain external backups.
 
-A new empty volume starts with recent network history and gradually backfills older history. Do not commit or deploy the local SQLite database through Git.
+A new empty volume starts with recent network history. To index older history, temporarily set `HISTORICAL_BACKFILL=true` during a controlled maintenance window. Backfilling can reduce API responsiveness on smaller deployments. Do not commit or deploy the local SQLite database through Git.
 
 ## Other commands
 
