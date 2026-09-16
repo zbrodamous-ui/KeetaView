@@ -47,6 +47,31 @@ The API is available only on the local computer at:
 http://127.0.0.1:3000
 ```
 
+## Railway deployment
+
+KeetaView requires a persistent, long-running Node.js service and cannot run on ordinary serverless hosting.
+
+Create a Railway service from this GitHub repository with:
+
+- Start command: `npm start`
+- Health path: `/api/status`
+- Persistent volume mounted at `/data`
+
+Set these environment variables:
+
+```text
+KEETAVIEW_DATA_DIR=/data
+HISTORICAL_BACKFILL=true
+HISTORICAL_BACKFILL_INTERVAL_MINUTES=10
+
+```
+
+Railway supplies `PORT` and `RAILWAY_ENVIRONMENT` automatically. KeetaView uses them to listen publicly on the assigned port.
+
+The persistent volume stores `keetascan.db`, its SQLite WAL files, the indexing state, and the database reset marker. Use a volume comfortably larger than the current database and maintain external backups.
+
+A new empty volume starts with recent network history and gradually backfills older history. Do not commit or deploy the local SQLite database through Git.
+
 ## Other commands
 
 Run a single indexing pass:
