@@ -134,6 +134,16 @@ async function loadTransaction() {
             "anchorVersion"
         );
 
+            const anchorBacklinks =
+        document.getElementById(
+            "anchorBacklinks"
+        );
+
+    const anchorBacklinkList =
+        document.getElementById(
+            "anchorBacklinkList"
+        );
+
     try {
         const transaction =
             await getTransactionData();
@@ -317,6 +327,49 @@ if (
         String(anchor.v);
 
     anchorDetails.hidden = false;
+}
+
+const anchorReferences =
+    transaction.anchor_references;
+
+if (
+    Array.isArray(anchorReferences) &&
+    anchorReferences.length > 0
+) {
+    anchorBacklinkList.replaceChildren();
+
+    anchorReferences.forEach(
+        (reference, index) => {
+            if (index > 0) {
+                anchorBacklinkList.append(
+                    document.createElement("br")
+                );
+            }
+
+            const link =
+                document.createElement("a");
+
+            link.href =
+                `transaction.html?block=${encodeURIComponent(
+                    reference.anchor_block_hash
+                )}&operation=${encodeURIComponent(
+                    reference.anchor_operation_index
+                )}`;
+
+            link.textContent =
+                reference.anchor_identifier ||
+                `${formatKeetaIdentifier(
+                    reference.anchor_block_hash
+                )}:${reference.anchor_operation_index}`;
+
+            link.title =
+                `Anchor transaction ${reference.anchor_block_hash}:${reference.anchor_operation_index}`;
+
+            anchorBacklinkList.append(link);
+        }
+    );
+
+    anchorBacklinks.hidden = false;
 }
 
     } catch (error) {

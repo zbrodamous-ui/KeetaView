@@ -1,6 +1,9 @@
 import fs from "fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import {
+    decodeAnchorPayload
+} from "./anchor.js";
 import * as KeetaNet from "@keetanetwork/keetanet-client";
 
 const client =
@@ -145,6 +148,23 @@ database.exec(`
 `);
 
 database.exec(`
+    CREATE TABLE IF NOT EXISTS anchor_references (
+        anchor_block_hash TEXT NOT NULL,
+        anchor_operation_index INTEGER NOT NULL,
+        source_address TEXT NOT NULL,
+        anchor_identifier TEXT,
+        referenced_block_hash TEXT NOT NULL,
+        referenced_operation_index INTEGER NOT NULL,
+        payload_version INTEGER NOT NULL,
+        timestamp TEXT NOT NULL,
+        PRIMARY KEY (
+            anchor_block_hash,
+            anchor_operation_index
+        )
+    )
+`);
+
+database.exec(`
     CREATE INDEX IF NOT EXISTS
         blocks_by_timestamp
     ON blocks(timestamp);
@@ -184,6 +204,17 @@ database.exec(`
     CREATE INDEX IF NOT EXISTS
         operations_by_recipient
     ON operations(recipient);
+
+        CREATE INDEX IF NOT EXISTS
+        anchor_references_by_reference
+    ON anchor_references(
+        referenced_block_hash,
+        referenced_operation_index
+    );
+
+    CREATE INDEX IF NOT EXISTS
+        anchor_references_by_source
+    ON anchor_references(source_address);
 `);
 
 function getFileSize(file) {
@@ -329,6 +360,21 @@ ON CONFLICT(address) DO UPDATE SET
             details_json
         )
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+const insertAnchorReference =
+    database.prepare(`
+        INSERT OR REPLACE INTO anchor_references (
+            anchor_block_hash,
+            anchor_operation_index,
+            source_address,
+            anchor_identifier,
+            referenced_block_hash,
+            referenced_operation_index,
+            payload_version,
+            timestamp
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const countAccounts =
@@ -652,17 +698,64 @@ const newestBlock =
         ?.publicKeyString
         ?.toString?.();
 
-            insertOperation.run(
-                block.hash.toString(),
-                operationIndex,
-                getOperationType(operation),
-                sender || null,
-                recipient || null,
-                token || null,
-                operation.amount?.toString?.() || null,
-                timestamp,
-                serializeOperation(operation)
-            );
+      const operationBlockHash =
+    block.hash.toString();
+
+const operationDetails =
+    serializeOperation(operation);
+
+insertOperation.run(
+    operationBlockHash,
+    operationIndex,
+    getOperationType(operation),
+    sender || null,
+    recipient || null,
+    token || null,
+    operation.amount?.toString?.() || null,
+    timestamp,
+    operationDetails
+);
+
+let external = null;
+
+try {
+    external =
+        JSON.parse(
+            operationDetails
+        )?.external;
+} catch {
+    external = null;
+}
+
+const anchorPayload =
+    decodeAnchorPayload(external);
+
+const anchorEntry =
+    Object.entries(
+        anchorPayload?.a || {}
+    )[0];
+
+if (
+    anchorPayload &&
+    anchorEntry &&
+    typeof anchorEntry[0] === "string"
+) {
+    const [
+        sourceAddress,
+        anchorMetadata
+    ] = anchorEntry;
+
+    insertAnchorReference.run(
+        operationBlockHash,
+        operationIndex,
+        sourceAddress,
+        anchorMetadata?.t || null,
+        anchorPayload.b.p,
+        anchorPayload.b.o,
+        anchorPayload.v,
+        timestamp
+    );
+}
 
             if (recipient) {
 
