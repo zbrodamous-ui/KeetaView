@@ -148,18 +148,23 @@ database.exec(`
 `);
 
 database.exec(`
-    CREATE TABLE IF NOT EXISTS anchor_references (
+    DROP TABLE IF EXISTS anchor_references;
+
+    CREATE TABLE IF NOT EXISTS anchor_inputs (
         anchor_block_hash TEXT NOT NULL,
         anchor_operation_index INTEGER NOT NULL,
+        input_index INTEGER NOT NULL,
         source_address TEXT NOT NULL,
-        anchor_identifier TEXT,
+        anchor_transaction_id TEXT,
         referenced_block_hash TEXT NOT NULL,
-        referenced_operation_index INTEGER NOT NULL,
+        referenced_operation_index INTEGER,
         payload_version INTEGER NOT NULL,
         timestamp TEXT NOT NULL,
         PRIMARY KEY (
             anchor_block_hash,
-            anchor_operation_index
+            anchor_operation_index,
+            source_address,
+            input_index
         )
     )
 `);
@@ -205,16 +210,16 @@ database.exec(`
         operations_by_recipient
     ON operations(recipient);
 
-        CREATE INDEX IF NOT EXISTS
-        anchor_references_by_reference
-    ON anchor_references(
+           CREATE INDEX IF NOT EXISTS
+        anchor_inputs_by_reference
+    ON anchor_inputs(
         referenced_block_hash,
         referenced_operation_index
     );
 
     CREATE INDEX IF NOT EXISTS
-        anchor_references_by_source
-    ON anchor_references(source_address);
+        anchor_inputs_by_source
+    ON anchor_inputs(source_address);
 `);
 
 function getFileSize(file) {
@@ -362,19 +367,20 @@ ON CONFLICT(address) DO UPDATE SET
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-const insertAnchorReference =
+const insertAnchorInput =
     database.prepare(`
-        INSERT OR REPLACE INTO anchor_references (
+        INSERT OR REPLACE INTO anchor_inputs (
             anchor_block_hash,
             anchor_operation_index,
+            input_index,
             source_address,
-            anchor_identifier,
+            anchor_transaction_id,
             referenced_block_hash,
             referenced_operation_index,
             payload_version,
             timestamp
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const countAccounts =
@@ -730,31 +736,45 @@ try {
 const anchorPayload =
     decodeAnchorPayload(external);
 
-const anchorEntry =
-    Object.entries(
-        anchorPayload?.a || {}
-    )[0];
-
 if (
     anchorPayload &&
-    anchorEntry &&
-    typeof anchorEntry[0] === "string"
+    Array.isArray(anchorPayload.i)
 ) {
-    const [
-        sourceAddress,
-        anchorMetadata
-    ] = anchorEntry;
+    for (
+        const [
+            sourceAddress,
+            anchorMetadata
+        ] of Object.entries(anchorPayload.a)
+    ) {
+        for (
+            const [inputIndex, input]
+            of anchorPayload.i.entries()
+        ) {
+            if (
+                typeof input?.h !== "string" ||
+                (
+                    input.o !== undefined &&
+                    !Number.isInteger(input.o)
+                )
+            ) {
+                continue;
+            }
 
-    insertAnchorReference.run(
-        operationBlockHash,
-        operationIndex,
-        sourceAddress,
-        anchorMetadata?.t || null,
-        anchorPayload.b.p,
-        anchorPayload.b.o,
-        anchorPayload.v,
-        timestamp
-    );
+            insertAnchorInput.run(
+                operationBlockHash,
+                operationIndex,
+                inputIndex,
+                sourceAddress,
+                typeof anchorMetadata?.t === "string"
+                    ? anchorMetadata.t
+                    : null,
+                input.h,
+                input.o ?? null,
+                anchorPayload.v,
+                timestamp
+            );
+        }
+    }
 }
 
             if (recipient) {

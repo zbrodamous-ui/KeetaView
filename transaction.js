@@ -312,16 +312,14 @@ if (
         "Not available";
 
     anchorReference.href =
-        `transaction.html?block=${encodeURIComponent(
+        `block.html?hash=${encodeURIComponent(
             anchor.b.p
-        )}&operation=${encodeURIComponent(
-            anchor.b.o
         )}`;
 
     anchorReference.textContent =
-        `${formatKeetaIdentifier(
+        `Previous block ${formatKeetaIdentifier(
             anchor.b.p
-        )}:${anchor.b.o}`;
+        )}; operation ${anchor.b.o}`;
 
     anchorVersion.textContent =
         String(anchor.v);
@@ -329,16 +327,16 @@ if (
     anchorDetails.hidden = false;
 }
 
-const anchorReferences =
-    transaction.anchor_references;
+const anchorInputs =
+    transaction.anchor_inputs;
 
 if (
-    Array.isArray(anchorReferences) &&
-    anchorReferences.length > 0
+    Array.isArray(anchorInputs) &&
+    anchorInputs.length > 0
 ) {
     anchorBacklinkList.replaceChildren();
 
-    anchorReferences.forEach(
+        anchorInputs.forEach(
         (reference, index) => {
             if (index > 0) {
                 anchorBacklinkList.append(

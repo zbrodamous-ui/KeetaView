@@ -42,16 +42,52 @@ export function decodeAnchorPayload(external) {
                 const payload =
                     JSON.parse(decoded);
 
+                                const anchorsAreValid =
+                    payload?.a &&
+                    typeof payload.a === "object" &&
+                    !Array.isArray(payload.a) &&
+                    Object.keys(payload.a).length > 0 &&
+                    Object.values(payload.a).every(
+                        (entry) =>
+                            entry &&
+                            typeof entry === "object" &&
+                            (
+                                typeof entry.t === "string" ||
+                                typeof entry.p === "string" ||
+                                typeof entry.d === "string"
+                            )
+                    );
+
+                const bindingIsValid =
+                    payload?.b === undefined ||
+                    (
+                        payload.b &&
+                        typeof payload.b === "object" &&
+                        typeof payload.b.p === "string" &&
+                        Number.isInteger(payload.b.o)
+                    );
+
+                const inputsAreValid =
+                    payload?.i === undefined ||
+                    (
+                        Array.isArray(payload.i) &&
+                        payload.i.every(
+                            (input) =>
+                                input &&
+                                typeof input === "object" &&
+                                typeof input.h === "string" &&
+                                (
+                                    input.o === undefined ||
+                                    Number.isInteger(input.o)
+                                )
+                        )
+                    );
+
                 const isAnchorPayload =
                     payload?.v === 1 &&
-                    payload?.a &&
-                    typeof payload.a ===
-                        "object" &&
-                    typeof payload?.b?.p ===
-                        "string" &&
-                    Number.isInteger(
-                        payload?.b?.o
-                    );
+                    anchorsAreValid &&
+                    bindingIsValid &&
+                    inputsAreValid;
 
                 if (isAnchorPayload) {
                     return payload;

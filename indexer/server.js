@@ -612,23 +612,30 @@ const offset =
                     anchor = null;
                 }
 
-                const anchorReferences =
+                const anchorInputs =
                     database.prepare(`
                         SELECT
                             anchor_block_hash,
                             anchor_operation_index,
+                            input_index,
                             source_address,
-                            anchor_identifier,
+                            anchor_transaction_id,
+                            referenced_operation_index,
                             payload_version,
                             timestamp
-                        FROM anchor_references
+                        FROM anchor_inputs
                         WHERE referenced_block_hash = ?
-                          AND referenced_operation_index = ?
-                        ORDER BY timestamp DESC
+                          AND (
+                              referenced_operation_index = ?
+                              OR referenced_operation_index IS NULL
+                          )
+                        ORDER BY timestamp DESC,
+                                 input_index ASC
                     `).all(
                         blockHash,
                         operationIndex
                     );
+
 
                 sendJson(
                     response,
@@ -636,8 +643,8 @@ const offset =
                                        {
                         ...operation,
                         anchor,
-                        anchor_references:
-                            anchorReferences
+                        anchor_inputs:
+                            anchorInputs
                     }
                 );
 
