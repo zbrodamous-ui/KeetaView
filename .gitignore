@@ -3,3 +3,9 @@ indexer/*.db
 /indexer/keetascan.db-wal
 /indexer/keetascan.db-shm
 /indexer/state.json
+.env
+.env.*
+!.env.example
+*.log
+indexer/*.db-*
+indexer/database-reset-marker.txt
