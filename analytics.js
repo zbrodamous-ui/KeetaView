@@ -1327,9 +1327,13 @@ function showAnalyticsError(error) {
 async function loadAnalytics() {
     try {
         const response =
-            await fetchKeetaView(
-                "http://localhost:3000/api/analytics"
-            );
+    await fetchKeetaView(
+        "http://localhost:3000/api/analytics",
+        {
+            cache: "no-store",
+            timeout: 45000
+        }
+    );
 
         if (!response.ok) {
             throw new Error(
