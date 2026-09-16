@@ -113,6 +113,27 @@ async function loadTransaction() {
     const blockElement =
         document.getElementById("block");
 
+    const anchorDetails =
+        document.getElementById(
+            "anchorDetails"
+        );
+    const anchorAddress =
+        document.getElementById(
+            "anchorAddress"
+        );
+    const anchorIdentifier =
+        document.getElementById(
+            "anchorIdentifier"
+        );
+    const anchorReference =
+        document.getElementById(
+            "anchorReference"
+        );
+    const anchorVersion =
+        document.getElementById(
+            "anchorVersion"
+        );
+
     try {
         const transaction =
             await getTransactionData();
@@ -242,6 +263,62 @@ async function loadTransaction() {
             )}">${formatKeetaIdentifier(
                 blockHash
             )}</a>`;
+
+const anchor = transaction.anchor;
+const anchorEntry =
+    Object.entries(
+        anchor?.a || {}
+    )[0];
+
+if (
+    anchor &&
+    anchorEntry &&
+    typeof anchor?.b?.p === "string" &&
+    Number.isInteger(anchor?.b?.o)
+) {
+    const [
+        addressValue,
+        anchorMetadata
+    ] = anchorEntry;
+
+    const addressLink =
+        document.createElement("a");
+
+    addressLink.href =
+        `address.html?address=${encodeURIComponent(
+            addressValue
+        )}`;
+    addressLink.textContent =
+        formatKeetaIdentifier(
+            addressValue
+        );
+
+    anchorAddress.replaceChildren(
+        addressLink
+    );
+
+    anchorIdentifier.textContent =
+        anchorMetadata?.t ||
+        "Not available";
+
+    anchorReference.href =
+        `transaction.html?block=${encodeURIComponent(
+            anchor.b.p
+        )}&operation=${encodeURIComponent(
+            anchor.b.o
+        )}`;
+
+    anchorReference.textContent =
+        `${formatKeetaIdentifier(
+            anchor.b.p
+        )}:${anchor.b.o}`;
+
+    anchorVersion.textContent =
+        String(anchor.v);
+
+    anchorDetails.hidden = false;
+}
+
     } catch (error) {
         console.error(
             "Transaction loading error:",
