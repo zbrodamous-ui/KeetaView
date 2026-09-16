@@ -117,10 +117,16 @@ async function loadTransaction() {
         document.getElementById(
             "anchorDetails"
         );
-    const anchorAddress =
+            const anchorAddress =
         document.getElementById(
             "anchorAddress"
         );
+
+            const anchorName =
+        document.getElementById(
+            "anchorName"
+        );
+
     const anchorIdentifier =
         document.getElementById(
             "anchorIdentifier"
@@ -307,6 +313,30 @@ if (
         addressLink
     );
 
+        try {
+        const anchorAccount =
+            KeetaNet.lib.Account
+                .fromPublicKeyString(
+                    addressValue
+                );
+
+        const anchorAccountInfo =
+            await client.getAccountInfo(
+                anchorAccount
+            );
+
+        anchorName.textContent =
+            anchorAccountInfo?.info?.name ||
+            "Not published";
+    } catch (error) {
+        console.warn(
+            "Unable to load anchor name:",
+            error
+        );
+
+        anchorName.textContent =
+            "Unavailable";
+    }
     anchorIdentifier.textContent =
         anchorMetadata?.t ||
         "Not available";
