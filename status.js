@@ -203,21 +203,6 @@ async function loadStatus() {
         renderStatus(status, { summary: status });
         setOnlineState();
 
-        // Load the heavier analytics details afterward.
-        try {
-            const analyticsResponse = await fetchKeetaView(
-                "http://localhost:3000/api/analytics",
-                { cache: "no-store" }
-            );
-
-            if (analyticsResponse.ok) {
-                const analytics = await analyticsResponse.json();
-                renderStatus(status, analytics);
-            }
-        } catch (analyticsError) {
-            console.warn("Analytics details are still loading:", analyticsError);
-        }
-
         await checkMarketFeed();
     } catch (error) {
         setOfflineState(error);

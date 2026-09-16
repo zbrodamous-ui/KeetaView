@@ -1067,15 +1067,22 @@ if (
                 return;
             }
 
-            if (
+                     if (
                 request.method === "GET" &&
                 url.pathname === "/api/status"
             ) {
-                const blocks =
+                const blockSummary =
                     database.prepare(`
-                        SELECT COUNT(*) AS total
+                        SELECT
+                            COUNT(*) AS total,
+                            COALESCE(
+                                AVG(operation_count),
+                                0
+                            ) AS average_operations,
+                            MIN(timestamp) AS first_timestamp,
+                            MAX(timestamp) AS latest_timestamp
                         FROM blocks
-                    `).get().total;
+                    `).get();
 
                 const accounts =
                     database.prepare(`
@@ -1099,10 +1106,22 @@ if (
                     response,
                     200,
                     {
-                        blocks,
+                        blocks:
+                            blockSummary.total,
                         accounts,
                         transfers,
-                        operations
+                        operations,
+                        averageOperations:
+                            Number(
+                                blockSummary
+                                    .average_operations
+                            ),
+                        firstTimestamp:
+                            blockSummary
+                                .first_timestamp,
+                        latestTimestamp:
+                            blockSummary
+                                .latest_timestamp
                     }
                 );
 
