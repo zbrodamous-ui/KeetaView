@@ -2400,6 +2400,13 @@ html[data-theme="clean"] .detail-shell .operation-card {
     background: #ffffff;
 }
 
+html[data-theme="clean"] .detail-back-link {
+    color: var(--link-color);
+}
+
+html[data-theme="clean"] .detail-back-link:hover {
+    color: var(--primary-text);
+}
 
 /* Final Dark Mode canvas selection */
 
