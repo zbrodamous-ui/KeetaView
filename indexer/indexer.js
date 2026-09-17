@@ -398,26 +398,71 @@ const countTransfers =
 console.log("KeetaView Indexer starting...");
 
 async function testConnection() {
-    const status =
-        await client.getNetworkStatus();
+    const maximumAttempts = 5;
 
-    const blockCounts =
-        status.map(
-            node => node.ledger.blockCount
-        );
+    for (
+        let attempt = 1;
+        attempt <= maximumAttempts;
+        attempt++
+    ) {
+        try {
+            const status =
+                await client.getNetworkStatus();
 
-    const latestBlock =
-        Math.max(...blockCounts);
+            const blockCounts =
+                status
+                    .map(
+                        (node) =>
+                            node?.ledger?.blockCount
+                    )
+                    .filter(
+                        (blockCount) =>
+                            Number.isFinite(blockCount)
+                    );
 
-    console.log(
-        "Keeta latest block:",
-        latestBlock
+            if (blockCounts.length === 0) {
+                throw new Error(
+                    "No valid block counts were returned."
+                );
+            }
+
+            const latestBlock =
+                Math.max(...blockCounts);
+
+            console.log(
+                "Keeta latest block:",
+                latestBlock
+            );
+
+            console.log(
+                "KeetaView indexed through:",
+                state.lastIndexedBlockHash
+            );
+
+            return true;
+        } catch (error) {
+            console.warn(
+                `Keeta connection check failed (attempt ${attempt} of ${maximumAttempts}):`,
+                error
+            );
+
+            if (attempt < maximumAttempts) {
+                await new Promise(
+                    (resolve) =>
+                        setTimeout(
+                            resolve,
+                            attempt * 2000
+                        )
+                );
+            }
+        }
+    }
+
+    console.warn(
+        "Keeta connection check remains unavailable; continuing so the service stays online."
     );
 
-    console.log(
-        "KeetaView indexed through:",
-        state.lastIndexedBlockHash
-    );
+    return false;
 }
 async function testHistoryFetch() {
     const batchStart =
