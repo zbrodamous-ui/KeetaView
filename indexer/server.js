@@ -57,7 +57,7 @@ const marketCacheDuration = 60 * 1000;
 let analyticsCache = null;
 
 const analyticsCacheDuration =
-    60 * 1000;
+    10 * 60 * 1000;
 
 function isAllowedLocalOrigin(origin) {
     if (!origin) {
