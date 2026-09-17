@@ -6799,3 +6799,7 @@ html[data-theme="soft"] .system-status strong {
 .analytics-dashboard-card {
     height: 405px;
 }
+#anchorActivityChart {
+    overflow-y: hidden;
+    box-sizing: border-box;
+}
