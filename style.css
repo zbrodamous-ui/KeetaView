@@ -4092,16 +4092,23 @@ html[data-theme="clean"] .blocks-list-card {
     line-height: 1.55;
 }
 
+.transaction-filter-controls {
+    display: grid;
+    grid-template-columns: minmax(150px, 0.65fr) minmax(220px, 1.35fr);
+    gap: 12px;
+    width: min(100%, 540px);
+}
+
 .transaction-filter {
     display: grid;
     gap: 8px;
-    width: min(100%, 380px);
     color: #53647a;
     font-size: 0.8rem;
     font-weight: 700;
 }
 
-.transaction-filter input {
+.transaction-filter input,
+.transaction-filter select {
     width: 100%;
     padding: 12px 14px;
     border: 1px solid #c8d0d9;
@@ -4113,7 +4120,8 @@ html[data-theme="clean"] .blocks-list-card {
     outline: none;
 }
 
-.transaction-filter input:focus {
+.transaction-filter input:focus,
+.transaction-filter select:focus {
     border-color: #5a5a5a;
     box-shadow: 0 0 0 3px rgba(90, 90, 90, 0.12);
 }
@@ -4319,6 +4327,11 @@ html[data-theme="clean"] .transactions-list-card {
         align-items: flex-start;
         flex-direction: column;
         padding: 22px;
+    }
+
+    .transaction-filter-controls {
+        grid-template-columns: 1fr;
+        width: 100%;
     }
 
     .transaction-filter {
