@@ -155,9 +155,26 @@ function createOperationRow(operation) {
         timeAgo(new Date(operation.timestamp));
 
     const type = document.createElement("span");
-    type.className = "transaction-directory-address";
-    type.textContent =
+    type.className = "transaction-directory-type";
+
+    const typeLabel = document.createElement("span");
+    typeLabel.textContent =
         formatOperationType(operation.operation_type);
+
+    type.appendChild(typeLabel);
+
+    if (operation.is_anchor) {
+        const anchorBadge =
+            document.createElement("span");
+
+        anchorBadge.className =
+            "transaction-anchor-badge";
+        anchorBadge.textContent = "Anchor";
+        anchorBadge.title =
+            "This operation contains a valid Anchor payload";
+
+        type.appendChild(anchorBadge);
+    }
 
     const sender = document.createElement("span");
     sender.className =
@@ -235,7 +252,10 @@ function visibleOperations() {
             operation.sender,
             operation.recipient,
             operation.token,
-            operation.tokenName
+            operation.tokenName,
+            operation.is_anchor
+                ? "anchor"
+                : ""
         ].some((value) =>
             String(value || "")
                 .toLowerCase()

@@ -735,10 +735,34 @@ const server =
                         offset
                     );
 
+                const operationsWithAnchorStatus =
+                    operations.map((operation) => {
+                        let external = null;
+
+                        try {
+                            external =
+                                JSON.parse(
+                                    operation.details_json
+                                )?.external;
+                        } catch {
+                            external = null;
+                        }
+
+                        return {
+                            ...operation,
+                            is_anchor:
+                                Boolean(
+                                    decodeAnchorPayload(
+                                        external
+                                    )
+                                )
+                        };
+                    });
+
                 sendJson(
                     response,
                     200,
-                    operations
+                    operationsWithAnchorStatus
                 );
 
                 return;

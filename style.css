@@ -4222,6 +4222,30 @@ html[data-theme="clean"] .blocks-list-card {
     overflow: hidden;
 }
 
+.transaction-directory-type {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    overflow: hidden;
+}
+
+.transaction-anchor-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border: 1px solid rgba(22, 118, 207, 0.45);
+    border-radius: 999px;
+    background: rgba(22, 118, 207, 0.14);
+    color: #1688e8;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
 .transaction-directory-address a:hover,
 .transaction-directory-block:hover {
     text-decoration: underline;
