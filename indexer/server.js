@@ -630,6 +630,7 @@ const server =
                             input_index,
                             source_address,
                             anchor_transaction_id,
+                            referenced_block_hash,
                             referenced_operation_index,
                             payload_version,
                             timestamp
