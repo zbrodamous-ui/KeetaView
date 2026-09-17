@@ -993,7 +993,15 @@ if (
                             sender AS address,
                             COUNT(*) AS total
                         FROM transfers
+                            INDEXED BY transfers_by_timestamp
                         WHERE sender IS NOT NULL
+                            AND timestamp >= (
+                                SELECT date(
+                                    MAX(timestamp),
+                                    '-13 days'
+                                )
+                                FROM transfers
+                            )
                         GROUP BY sender
                         ORDER BY total DESC
                         LIMIT 100
@@ -1005,7 +1013,15 @@ if (
                             recipient AS address,
                             COUNT(*) AS total
                         FROM transfers
+                            INDEXED BY transfers_by_timestamp
                         WHERE recipient IS NOT NULL
+                            AND timestamp >= (
+                                SELECT date(
+                                    MAX(timestamp),
+                                    '-13 days'
+                                )
+                                FROM transfers
+                            )
                         GROUP BY recipient
                         ORDER BY total DESC
                         LIMIT 100
@@ -1017,7 +1033,15 @@ if (
                             token,
                             COUNT(*) AS transfers
                         FROM transfers
+                            INDEXED BY transfers_by_timestamp
                         WHERE token IS NOT NULL
+                            AND timestamp >= (
+                                SELECT date(
+                                    MAX(timestamp),
+                                    '-13 days'
+                                )
+                                FROM transfers
+                            )
                         GROUP BY token
                         ORDER BY transfers DESC
                         LIMIT 100
