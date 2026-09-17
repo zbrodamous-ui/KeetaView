@@ -10,8 +10,12 @@ const pageNumber =
     document.getElementById("pageNumber");
 const transactionFilter =
     document.getElementById("transactionFilter");
+const transactionScope =
+    document.getElementById("transactionScope");
 const transactionResultCount =
     document.getElementById("transactionResultCount");
+const transactionsListTitle =
+    document.getElementById("transactionsListTitle");
 
 const rowsPerPage = 20;
 const tokenInfoCache = new Map();
@@ -280,7 +284,9 @@ function renderCurrentPage() {
         empty.textContent =
             transactionFilter.value.trim()
                 ? "No operations on this page match that filter."
-                : "No indexed operations are available.";
+                : transactionScope.value === "anchors"
+                    ? "No indexed Anchor operations are available yet."
+                    : "No indexed operations are available.";
 
         transactionsPageList.appendChild(empty);
     } else {
@@ -309,6 +315,11 @@ function renderCurrentPage() {
         transactionFilter.value.trim()
             ? `${operations.length} matching on this page`
             : `${firstResult.toLocaleString()}–${lastResult.toLocaleString()} of ${totalOperations.toLocaleString()}`;
+
+    transactionsListTitle.textContent =
+        transactionScope.value === "anchors"
+            ? "Recorded Anchors"
+            : "Recorded Operations";
 
     pageNumber.textContent =
         `Page ${currentPage} of ${totalPages}`;
@@ -376,12 +387,25 @@ async function loadOperationsPage() {
         const offset =
             (currentPage - 1) * rowsPerPage;
 
+        const anchorsOnly =
+            transactionScope.value === "anchors";
+
+        const operationParameters =
+            new URLSearchParams({
+                limit: rowsPerPage,
+                offset
+            });
+
+        if (anchorsOnly) {
+            operationParameters.set("anchors", "true");
+        }
+
         const [
             operationsResponse,
             statusResponse
         ] = await Promise.all([
             fetchKeetaView(
-                `/api/operations?limit=${rowsPerPage}&offset=${offset}`
+                `/api/operations?${operationParameters}`
             ),
             fetchKeetaView(
                 "/api/status"
@@ -397,14 +421,21 @@ async function loadOperationsPage() {
             );
         }
 
-        const operations =
+        const operationPayload =
             await operationsResponse.json();
 
         const status =
             await statusResponse.json();
 
+        const operations =
+            Array.isArray(operationPayload)
+                ? operationPayload
+                : operationPayload.operations;
+
         totalOperations =
-            Number(status.operations || 0);
+            Array.isArray(operationPayload)
+                ? Number(status.operations || 0)
+                : Number(operationPayload.total || 0);
 
         loadedOperations =
             await Promise.all(
@@ -430,6 +461,15 @@ async function loadOperationsPage() {
 transactionFilter.addEventListener(
     "input",
     renderCurrentPage
+);
+
+transactionScope.addEventListener(
+    "change",
+    () => {
+        currentPage = 1;
+        transactionFilter.value = "";
+        loadOperationsPage();
+    }
 );
 
 previousPageButton.addEventListener(

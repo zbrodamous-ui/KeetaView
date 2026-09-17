@@ -690,24 +690,43 @@ const server =
                 const operationType =
                     url.searchParams.get("type");
 
+                const anchorsOnly =
+                    url.searchParams.get("anchors") === "true";
+
                 const conditions = [];
                 const parameters = [];
 
                 if (address) {
                     conditions.push(
-                        "(sender = ? OR recipient = ?)"
+                        "(operations.sender = ? OR operations.recipient = ?)"
                     );
                     parameters.push(address, address);
                 }
 
                 if (operationType) {
-                    conditions.push("operation_type = ?");
+                    conditions.push("operations.operation_type = ?");
                     parameters.push(operationType);
                 }
 
                 const whereClause =
                     conditions.length > 0
                         ? `WHERE ${conditions.join(" AND ")}`
+                        : "";
+
+                const anchorJoin =
+                    anchorsOnly
+                        ? `
+                            INNER JOIN (
+                                SELECT DISTINCT
+                                    anchor_block_hash,
+                                    anchor_operation_index
+                                FROM anchor_inputs
+                            ) AS anchor_operations
+                                ON anchor_operations.anchor_block_hash =
+                                    operations.block_hash
+                                AND anchor_operations.anchor_operation_index =
+                                    operations.operation_index
+                        `
                         : "";
 
                 const operations =
@@ -723,10 +742,11 @@ const server =
                             timestamp,
                             details_json
                         FROM operations
+                        ${anchorJoin}
                         ${whereClause}
-                        ORDER BY timestamp DESC,
-                                 block_hash DESC,
-                                 operation_index ASC
+                        ORDER BY operations.timestamp DESC,
+                                 operations.block_hash DESC,
+                                 operations.operation_index ASC
                         LIMIT ?
                         OFFSET ?
                     `).all(
@@ -758,6 +778,29 @@ const server =
                                 )
                         };
                     });
+
+                if (anchorsOnly) {
+                    const anchorTotal =
+                        database.prepare(`
+                            SELECT COUNT(*) AS total
+                            FROM operations
+                            ${anchorJoin}
+                            ${whereClause}
+                        `).get(...parameters).total;
+
+                    sendJson(
+                        response,
+                        200,
+                        {
+                            operations:
+                                operationsWithAnchorStatus,
+                            total:
+                                Number(anchorTotal || 0)
+                        }
+                    );
+
+                    return;
+                }
 
                 sendJson(
                     response,
