@@ -383,6 +383,20 @@ const insertAnchorInput =
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
+const selectHistoricalAnchorOperations =
+    database.prepare(`
+        SELECT
+            rowid AS operation_rowid,
+            block_hash,
+            operation_index,
+            timestamp,
+            details_json
+        FROM operations
+        WHERE rowid > ?
+        ORDER BY rowid
+        LIMIT ?
+    `);
+
     const countAccounts =
     database.prepare(`
         SELECT COUNT(*) AS total
@@ -702,6 +716,72 @@ function serializeOperation(operation) {
     }
 }
 
+function getAnchorTransactionId(anchorMetadata) {
+    for (const field of ["t", "p", "d"]) {
+        if (typeof anchorMetadata?.[field] === "string") {
+            return anchorMetadata[field];
+        }
+    }
+
+    return null;
+}
+
+function storeAnchorInputs(
+    anchorBlockHash,
+    anchorOperationIndex,
+    timestamp,
+    anchorPayload
+) {
+    if (
+        !anchorPayload ||
+        !Array.isArray(anchorPayload.i)
+    ) {
+        return 0;
+    }
+
+    let inserted = 0;
+
+    for (
+        const [
+            sourceAddress,
+            anchorMetadata
+        ] of Object.entries(anchorPayload.a)
+    ) {
+        for (
+            const [inputIndex, input]
+            of anchorPayload.i.entries()
+        ) {
+            if (
+                typeof input?.h !== "string" ||
+                (
+                    input.o !== undefined &&
+                    !Number.isInteger(input.o)
+                )
+            ) {
+                continue;
+            }
+
+            insertAnchorInput.run(
+                anchorBlockHash,
+                anchorOperationIndex,
+                inputIndex,
+                sourceAddress,
+                getAnchorTransactionId(
+                    anchorMetadata
+                ),
+                input.h,
+                input.o ?? null,
+                anchorPayload.v,
+                timestamp
+            );
+
+            inserted += 1;
+        }
+    }
+
+    return inserted;
+}
+
 async function processHistoryEntry(entry) {
     const blocks =
         entry.voteStaple.blocks;
@@ -781,46 +861,12 @@ try {
 const anchorPayload =
     decodeAnchorPayload(external);
 
-if (
-    anchorPayload &&
-    Array.isArray(anchorPayload.i)
-) {
-    for (
-        const [
-            sourceAddress,
-            anchorMetadata
-        ] of Object.entries(anchorPayload.a)
-    ) {
-        for (
-            const [inputIndex, input]
-            of anchorPayload.i.entries()
-        ) {
-            if (
-                typeof input?.h !== "string" ||
-                (
-                    input.o !== undefined &&
-                    !Number.isInteger(input.o)
-                )
-            ) {
-                continue;
-            }
-
-            insertAnchorInput.run(
-                operationBlockHash,
-                operationIndex,
-                inputIndex,
-                sourceAddress,
-                typeof anchorMetadata?.t === "string"
-                    ? anchorMetadata.t
-                    : null,
-                input.h,
-                input.o ?? null,
-                anchorPayload.v,
-                timestamp
-            );
-        }
-    }
-}
+storeAnchorInputs(
+    operationBlockHash,
+    operationIndex,
+    timestamp,
+    anchorPayload
+);
 
             if (recipient) {
 
@@ -866,6 +912,79 @@ state.transfersFound =
     state.lastIndexedBlockHash =
         newestBlock.hash.toString();
 }
+}
+
+function backfillHistoricalAnchorInputs(
+    batchSize = 10_000
+) {
+    if (state.anchorInputBackfillComplete) {
+        return;
+    }
+
+    const cursor =
+        Number(
+            state.anchorInputBackfillCursor
+        ) || 0;
+
+    const operations =
+        selectHistoricalAnchorOperations.all(
+            cursor,
+            batchSize
+        );
+
+    let nextCursor = cursor;
+    let inserted = 0;
+
+    for (const operation of operations) {
+        nextCursor =
+            Number(operation.operation_rowid);
+
+        let external = null;
+
+        try {
+            external =
+                JSON.parse(
+                    operation.details_json
+                )?.external;
+        } catch {
+            continue;
+        }
+
+        inserted +=
+            storeAnchorInputs(
+                operation.block_hash,
+                operation.operation_index,
+                operation.timestamp,
+                decodeAnchorPayload(external)
+            );
+    }
+
+    state.anchorInputBackfillCursor =
+        nextCursor;
+
+    if (operations.length < batchSize) {
+        state.anchorInputBackfillComplete =
+            true;
+    }
+
+    fs.writeFileSync(
+        stateFile,
+        JSON.stringify(state, null, 2)
+    );
+
+    console.log(
+        "Historical Anchor input backfill batch completed.",
+        {
+            operationsScanned:
+                operations.length,
+            relationshipsStored:
+                inserted,
+            cursor:
+                state.anchorInputBackfillCursor,
+            complete:
+                state.anchorInputBackfillComplete
+        }
+    );
 }
 
 let state;
@@ -922,6 +1041,8 @@ if (fs.existsSync(stateFile)) {
     state.lastIndexedBlockHash = null;
     state.accountsFound = 0;
     state.transfersFound = 0;
+    state.anchorInputBackfillCursor = 0;
+    state.anchorInputBackfillComplete = true;
 
 }
 
@@ -1054,6 +1175,15 @@ if (watchMode) {
         } catch (error) {
             console.error(
                 "Latest history refresh failed:",
+                error
+            );
+        }
+
+        try {
+            backfillHistoricalAnchorInputs();
+        } catch (error) {
+            console.error(
+                "Historical Anchor input backfill failed:",
                 error
             );
         }
