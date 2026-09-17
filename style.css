@@ -6781,3 +6781,21 @@ html[data-theme="soft"] .system-status {
 html[data-theme="soft"] .system-status strong {
     color: inherit !important;
 }
+#anchorActivityChart,
+#recentAnchors {
+    min-height: 325px;
+    height: 325px;
+}
+
+#recentAnchors {
+    overflow-y: hidden;
+    scrollbar-gutter: auto;
+}
+.analytics-two-column:has(#anchorActivityChart) {
+    align-items: start;
+}
+
+.analytics-two-column:has(#anchorActivityChart)
+.analytics-dashboard-card {
+    height: 405px;
+}
