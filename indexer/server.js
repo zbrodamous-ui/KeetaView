@@ -996,9 +996,9 @@ if (
                             INDEXED BY transfers_by_timestamp
                         WHERE sender IS NOT NULL
                             AND timestamp >= (
-                                SELECT date(
+                                SELECT datetime(
                                     MAX(timestamp),
-                                    '-13 days'
+                                    '-24 hours'
                                 )
                                 FROM transfers
                             )
@@ -1016,9 +1016,9 @@ if (
                             INDEXED BY transfers_by_timestamp
                         WHERE recipient IS NOT NULL
                             AND timestamp >= (
-                                SELECT date(
+                                SELECT datetime(
                                     MAX(timestamp),
-                                    '-13 days'
+                                    '-24 hours'
                                 )
                                 FROM transfers
                             )
@@ -1036,9 +1036,9 @@ if (
                             INDEXED BY transfers_by_timestamp
                         WHERE token IS NOT NULL
                             AND timestamp >= (
-                                SELECT date(
+                                SELECT datetime(
                                     MAX(timestamp),
-                                    '-13 days'
+                                    '-24 hours'
                                 )
                                 FROM transfers
                             )
