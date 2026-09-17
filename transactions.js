@@ -48,7 +48,11 @@ function formatOperationType(value) {
         );
 }
 
-function formatTokenAmount(amount, decimals) {
+function formatTokenAmount(
+    amount,
+    decimals,
+    maximumFractionDigits = 6
+) {
     const rawAmount = BigInt(amount);
     const safeDecimals = Math.max(0, Number(decimals || 0));
     const divisor = 10n ** BigInt(safeDecimals);
@@ -57,6 +61,13 @@ function formatTokenAmount(amount, decimals) {
     const fractionalText = fractionalPart
         .toString()
         .padStart(safeDecimals, "0")
+        .slice(
+            0,
+            Math.min(
+                safeDecimals,
+                maximumFractionDigits
+            )
+        )
         .replace(/0+$/, "");
 
     return fractionalText
@@ -101,7 +112,16 @@ async function getTokenDisplay(tokenAddress, rawAmount) {
 
     return {
         amount:
-            formatTokenAmount(rawAmount, decimalPlaces),
+            formatTokenAmount(
+                rawAmount,
+                decimalPlaces
+            ),
+        exactAmount:
+            formatTokenAmount(
+                rawAmount,
+                decimalPlaces,
+                decimalPlaces
+            ),
         name:
             tokenInfo?.info?.name ||
             shortValue(tokenAddress, 8, 6)
@@ -205,6 +225,11 @@ function createOperationRow(operation) {
         details.append(
             `${operation.displayAmount} ${operation.tokenName}`
         );
+
+        if (operation.exactAmount) {
+            details.title =
+                `Exact amount: ${operation.exactAmount} ${operation.tokenName}`;
+        }
     }
 
     if (!operation.recipient && !operation.displayAmount) {
@@ -349,6 +374,7 @@ async function prepareOperation(operation) {
         return {
             ...operation,
             displayAmount: tokenDisplay?.amount,
+            exactAmount: tokenDisplay?.exactAmount,
             tokenName: tokenDisplay?.name
         };
     } catch (error) {
