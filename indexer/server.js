@@ -56,6 +56,11 @@ const marketCacheDuration = 60 * 1000;
 
 let analyticsCache = null;
 
+let analyticsCacheRefreshPromise = null;
+
+const analyticsCacheRefreshToken =
+    crypto.randomUUID();
+
 const analyticsCacheDuration =
     10 * 60 * 1000;
 
@@ -194,10 +199,10 @@ async function sendStaticFile(
                 "Referrer-Policy":
                     "strict-origin-when-cross-origin",
                 "X-Frame-Options":
-                   "DENY",
+                    "DENY",
 
-                   "Content-Security-Policy":
-    "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://static.test.keeta.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https: wss:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+                "Content-Security-Policy":
+                    "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://static.test.keeta.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https: wss:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
             }
         );
         response.end(file);
@@ -325,7 +330,7 @@ const server =
                 if (
                     cached?.data &&
                     Date.now() <
-                        cached.expiresAt
+                    cached.expiresAt
                 ) {
                     sendJson(
                         response,
@@ -448,21 +453,21 @@ const server =
                     );
 
                     if (cached?.data) {
-                    console.log(
-                        "Serving cached KTA market data after CoinGecko failure."
-                    );
+                        console.log(
+                            "Serving cached KTA market data after CoinGecko failure."
+                        );
 
-                    sendJson(
-                        response,
-                        200,
-                        {
-                            ...cached.data,
-                            stale: true
-                        }
-                    );
+                        sendJson(
+                            response,
+                            200,
+                            {
+                                ...cached.data,
+                                stale: true
+                            }
+                        );
 
-                    return;
-                }
+                        return;
+                    }
 
                     sendJson(
                         response,
@@ -492,27 +497,27 @@ const server =
                     Number.isInteger(
                         requestedLimit
                     ) &&
-                    requestedLimit > 0
+                        requestedLimit > 0
                         ? Math.min(
                             requestedLimit,
                             100
                         )
                         : 10;
 
-                        const requestedOffset =
-    Number(
-        url.searchParams.get(
-            "offset"
-        )
-    );
+                const requestedOffset =
+                    Number(
+                        url.searchParams.get(
+                            "offset"
+                        )
+                    );
 
-const offset =
-    Number.isInteger(
-        requestedOffset
-    ) &&
-    requestedOffset >= 0
-        ? requestedOffset
-        : 0;
+                const offset =
+                    Number.isInteger(
+                        requestedOffset
+                    ) &&
+                        requestedOffset >= 0
+                        ? requestedOffset
+                        : 0;
 
                 const blocks =
                     database.prepare(`
@@ -525,9 +530,9 @@ const offset =
                             LIMIT ?
                             OFFSET ?
                             `).all(
-                                limit,
-                                offset
-                            );
+                        limit,
+                        offset
+                    );
 
                 sendJson(
                     response,
@@ -645,7 +650,7 @@ const offset =
                 sendJson(
                     response,
                     200,
-                                       {
+                    {
                         ...operation,
                         anchor,
                         anchor_inputs:
@@ -665,7 +670,7 @@ const offset =
 
                 const limit =
                     Number.isInteger(requestedLimit) &&
-                    requestedLimit > 0
+                        requestedLimit > 0
                         ? Math.min(requestedLimit, 100)
                         : 20;
 
@@ -674,7 +679,7 @@ const offset =
 
                 const offset =
                     Number.isInteger(requestedOffset) &&
-                    requestedOffset >= 0
+                        requestedOffset >= 0
                         ? requestedOffset
                         : 0;
 
@@ -739,40 +744,40 @@ const offset =
             }
 
             if (
-    request.method === "GET" &&
-    url.pathname === "/api/transfers"
-) {
-    const requestedLimit =
-        Number(
-            url.searchParams.get(
-                "limit"
-            )
-        );
+                request.method === "GET" &&
+                url.pathname === "/api/transfers"
+            ) {
+                const requestedLimit =
+                    Number(
+                        url.searchParams.get(
+                            "limit"
+                        )
+                    );
 
-    const limit =
-        Number.isInteger(
-            requestedLimit
-        ) &&
-        requestedLimit > 0
-            ? Math.min(
-                requestedLimit,
-                100
-            )
-            : 10;
+                const limit =
+                    Number.isInteger(
+                        requestedLimit
+                    ) &&
+                        requestedLimit > 0
+                        ? Math.min(
+                            requestedLimit,
+                            100
+                        )
+                        : 10;
 
-    const address =
-        url.searchParams.get(
-            "address"
-        );
+                const address =
+                    url.searchParams.get(
+                        "address"
+                    );
 
-const token =
-    url.searchParams.get(
-        "token"
-    );
+                const token =
+                    url.searchParams.get(
+                        "token"
+                    );
 
-    const transfers =
-    token
-        ? database.prepare(`
+                const transfers =
+                    token
+                        ? database.prepare(`
             SELECT
                 block_hash,
                 operation_index,
@@ -786,11 +791,11 @@ const token =
             ORDER BY timestamp DESC
             LIMIT ?
         `).all(
-            token,
-            limit
-        )
-        : address
-            ? database.prepare(`
+                            token,
+                            limit
+                        )
+                        : address
+                            ? database.prepare(`
                 SELECT
                     block_hash,
                     operation_index,
@@ -805,11 +810,11 @@ const token =
                 ORDER BY timestamp DESC
                 LIMIT ?
             `).all(
-                address,
-                address,
-                limit
-            )
-            : database.prepare(`
+                                address,
+                                address,
+                                limit
+                            )
+                            : database.prepare(`
                 SELECT
                     block_hash,
                     operation_index,
@@ -823,39 +828,39 @@ const token =
                 LIMIT ?
             `).all(limit);
 
-    sendJson(
-        response,
-        200,
-        transfers
-    );
+                sendJson(
+                    response,
+                    200,
+                    transfers
+                );
 
-    return;
-}
+                return;
+            }
 
-if (
-    request.method === "GET" &&
-    url.pathname === "/api/assets"
-) {
-    const requestedLimit =
-        Number(
-            url.searchParams.get(
-                "limit"
-            )
-        );
+            if (
+                request.method === "GET" &&
+                url.pathname === "/api/assets"
+            ) {
+                const requestedLimit =
+                    Number(
+                        url.searchParams.get(
+                            "limit"
+                        )
+                    );
 
-    const limit =
-        Number.isInteger(
-            requestedLimit
-        ) &&
-        requestedLimit > 0
-            ? Math.min(
-                requestedLimit,
-                1000
-            )
-            : 1000;
+                const limit =
+                    Number.isInteger(
+                        requestedLimit
+                    ) &&
+                        requestedLimit > 0
+                        ? Math.min(
+                            requestedLimit,
+                            1000
+                        )
+                        : 1000;
 
-    const assets =
-        database.prepare(`
+                const assets =
+                    database.prepare(`
             SELECT DISTINCT
                 token AS address
             FROM transfers
@@ -865,54 +870,54 @@ if (
             LIMIT ?
         `).all(limit);
 
-    sendJson(
-        response,
-        200,
-        assets
-    );
+                sendJson(
+                    response,
+                    200,
+                    assets
+                );
 
-    return;
-}
+                return;
+            }
 
-if (
-    request.method === "GET" &&
-    url.pathname === "/api/accounts"
-) {
-    const requestedLimit =
-        Number(
-            url.searchParams.get(
-                "limit"
-            )
-        );
+            if (
+                request.method === "GET" &&
+                url.pathname === "/api/accounts"
+            ) {
+                const requestedLimit =
+                    Number(
+                        url.searchParams.get(
+                            "limit"
+                        )
+                    );
 
-    const limit =
-        Number.isInteger(
-            requestedLimit
-        ) &&
-        requestedLimit > 0
-            ? Math.min(
-                requestedLimit,
-                100
-            )
-            : 10;
+                const limit =
+                    Number.isInteger(
+                        requestedLimit
+                    ) &&
+                        requestedLimit > 0
+                        ? Math.min(
+                            requestedLimit,
+                            100
+                        )
+                        : 10;
 
-    const requestedOffset =
-        Number(
-            url.searchParams.get(
-                "offset"
-            )
-        );
+                const requestedOffset =
+                    Number(
+                        url.searchParams.get(
+                            "offset"
+                        )
+                    );
 
-    const offset =
-        Number.isInteger(
-            requestedOffset
-        ) &&
-        requestedOffset >= 0
-            ? requestedOffset
-            : 0;
+                const offset =
+                    Number.isInteger(
+                        requestedOffset
+                    ) &&
+                        requestedOffset >= 0
+                        ? requestedOffset
+                        : 0;
 
-    const accounts =
-        database.prepare(`
+                const accounts =
+                    database.prepare(`
             SELECT
                 address,
                 first_seen_timestamp
@@ -921,34 +926,68 @@ if (
             LIMIT ?
             OFFSET ?
         `).all(
-            limit,
-            offset
-        );
+                        limit,
+                        offset
+                    );
 
-    sendJson(
-        response,
-        200,
-        accounts
-    );
+                sendJson(
+                    response,
+                    200,
+                    accounts
+                );
 
-    return;
-}
+                return;
+            }
             if (
                 request.method === "GET" &&
                 url.pathname === "/api/analytics"
             ) {
+                const analyticsRefreshIsInternal =
+                    request.headers[
+                    "x-keetaview-analytics-refresh"
+                    ] === analyticsCacheRefreshToken;
+
                 const analyticsCacheIsFresh =
                     analyticsCache &&
                     Date.now() -
-                        analyticsCache.createdAt <
-                        analyticsCacheDuration;
+                    analyticsCache.createdAt <
+                    analyticsCacheDuration;
 
-                if (analyticsCacheIsFresh) {
+                if (
+                    analyticsCache &&
+                    !analyticsRefreshIsInternal
+                ) {
                     sendJson(
                         response,
                         200,
                         analyticsCache.data
                     );
+
+                    if (
+                        !analyticsCacheIsFresh &&
+                        !analyticsCacheRefreshPromise
+                    ) {
+                        analyticsCacheRefreshPromise =
+                            fetch(
+                                `http://127.0.0.1:${port}/api/analytics`,
+                                {
+                                    headers: {
+                                        "x-keetaview-analytics-refresh":
+                                            analyticsCacheRefreshToken
+                                    }
+                                }
+                            )
+                                .catch((error) => {
+                                    console.error(
+                                        "Analytics cache refresh failed:",
+                                        error
+                                    );
+                                })
+                                .finally(() => {
+                                    analyticsCacheRefreshPromise =
+                                        null;
+                                });
+                    }
 
                     return;
                 }
@@ -1125,7 +1164,7 @@ if (
                 return;
             }
 
-                     if (
+            if (
                 request.method === "GET" &&
                 url.pathname === "/api/status"
             ) {
