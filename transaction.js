@@ -288,9 +288,7 @@ const anchorEntry =
 
 if (
     anchor &&
-    anchorEntry &&
-    typeof anchor?.b?.p === "string" &&
-    Number.isInteger(anchor?.b?.o)
+    anchorEntry
 ) {
     const [
         addressValue,
@@ -313,7 +311,7 @@ if (
         addressLink
     );
 
-        try {
+    try {
         const anchorAccount =
             KeetaNet.lib.Account
                 .fromPublicKeyString(
@@ -337,19 +335,36 @@ if (
         anchorName.textContent =
             "Unavailable";
     }
+
     anchorIdentifier.textContent =
         anchorMetadata?.t ||
+        anchorMetadata?.p ||
+        anchorMetadata?.d ||
         "Not available";
 
-    anchorReference.href =
-        `block.html?hash=${encodeURIComponent(
-            anchor.b.p
-        )}`;
+    const anchorHasBinding =
+        typeof anchor?.b?.p === "string" &&
+        Number.isInteger(anchor?.b?.o);
 
-    anchorReference.textContent =
-        `Previous block ${formatKeetaIdentifier(
-            anchor.b.p
-        )}; operation ${anchor.b.o}`;
+    if (anchorHasBinding) {
+        anchorReference.href =
+            `transaction.html?block=${encodeURIComponent(
+                anchor.b.p
+            )}&operation=${encodeURIComponent(
+                anchor.b.o
+            )}`;
+
+        anchorReference.textContent =
+            `${formatKeetaIdentifier(
+                anchor.b.p
+            )}:${anchor.b.o}`;
+    } else {
+        anchorReference.removeAttribute(
+            "href"
+        );
+        anchorReference.textContent =
+            "Not provided";
+    }
 
     anchorVersion.textContent =
         String(anchor.v);
@@ -385,7 +400,7 @@ if (
                 )}`;
 
             link.textContent =
-                reference.anchor_identifier ||
+                reference.anchor_transaction_id ||
                 `${formatKeetaIdentifier(
                     reference.anchor_block_hash
                 )}:${reference.anchor_operation_index}`;
