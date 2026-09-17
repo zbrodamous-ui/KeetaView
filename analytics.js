@@ -151,10 +151,17 @@ async function getAnalyticsToken(tokenAddress) {
     return result;
 }
 
-function renderActivityChart(activity) {
+function renderActivityChart(
+    activity,
+    {
+        elementId = "activityChart",
+        valueKey = "transfers",
+        unit = "transfer"
+    } = {}
+) {
     const chart =
         document.getElementById(
-            "activityChart"
+            elementId
         );
 
     chart.innerHTML = "";
@@ -169,14 +176,14 @@ function renderActivityChart(activity) {
         Math.max(
             ...activity.map(
                 item =>
-                    Number(item.transfers)
+                    Number(item[valueKey])
             ),
             1
         );
 
     activity.forEach((item) => {
         const value =
-            Number(item.transfers);
+            Number(item[valueKey]);
 
         const height =
             Math.max(
@@ -205,7 +212,7 @@ function renderActivityChart(activity) {
             );
 
         column.title =
-            `${label}: ${value.toLocaleString()} transfers`;
+            `${label}: ${value.toLocaleString()} ${unit}${value === 1 ? "" : "s"}`;
 
         column.tabIndex = 0;
         column.style.setProperty(
@@ -224,7 +231,7 @@ function renderActivityChart(activity) {
                     <strong>${label}</strong>
                     <span>
                         ${value.toLocaleString()}
-                        transfer${value === 1 ? "" : "s"}
+                        ${unit}${value === 1 ? "" : "s"}
                     </span>
                 </div>
 
@@ -436,6 +443,63 @@ function renderRecentTransfers(transfers) {
                 amountElement.textContent =
                     `${amount} ${token.name}`;
             });
+    });
+}
+
+function renderRecentAnchors(anchors) {
+    const list =
+        document.getElementById(
+            "recentAnchors"
+        );
+
+    list.innerHTML = "";
+
+    if (!anchors.length) {
+        list.innerHTML =
+            '<p class="analytics-empty">No indexed Anchors are available yet.</p>';
+        return;
+    }
+
+    anchors.forEach((anchor) => {
+        const row =
+            document.createElement("a");
+
+        row.className =
+            "analytics-transfer-row";
+
+        row.href =
+            `transaction.html?block=${encodeURIComponent(
+                anchor.block_hash
+            )}&operation=${encodeURIComponent(
+                anchor.operation_index
+            )}`;
+
+        row.innerHTML = `
+            <span class="analytics-transfer-icon">A</span>
+
+            <span class="analytics-transfer-route">
+                <strong>
+                    ${shortAnalyticsValue(
+                        anchor.source_address,
+                        9,
+                        5
+                    )}
+                </strong>
+
+                <small>
+                    ${timeAgo(anchor.timestamp)}
+                </small>
+            </span>
+
+            <span class="analytics-transfer-amount">
+                ${Number(
+                    anchor.relationships
+                ).toLocaleString()}
+                relationship${Number(anchor.relationships) === 1 ? "" : "s"}
+            </span>
+        `;
+
+        list.appendChild(row);
     });
 }
 
@@ -1398,6 +1462,57 @@ async function loadAnalytics() {
 
         renderActivityChart(
             analytics.activity
+        );
+
+        const anchors =
+            analytics.anchors || {
+                summary: {},
+                activity: [],
+                recent: []
+            };
+
+        document.getElementById(
+            "analyticsAnchors"
+        ).textContent =
+            Number(
+                anchors.summary.total || 0
+            ).toLocaleString();
+
+        document.getElementById(
+            "anchorRelationships"
+        ).textContent =
+            Number(
+                anchors.summary.relationships || 0
+            ).toLocaleString();
+
+        document.getElementById(
+            "anchorAccounts"
+        ).textContent =
+            Number(
+                anchors.summary.accounts || 0
+            ).toLocaleString();
+
+        document.getElementById(
+            "latestAnchor"
+        ).textContent =
+            anchors.summary.latestTimestamp
+                ? timeAgo(
+                    anchors.summary.latestTimestamp
+                )
+                : "Not available";
+
+        renderActivityChart(
+            anchors.activity,
+            {
+                elementId:
+                    "anchorActivityChart",
+                valueKey: "anchors",
+                unit: "Anchor"
+            }
+        );
+
+        renderRecentAnchors(
+            anchors.recent
         );
 
         renderRankedAccounts(

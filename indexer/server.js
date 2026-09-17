@@ -1187,6 +1187,77 @@ const server =
                         LIMIT 100
                     `).all();
 
+                const anchorSummary =
+                    database.prepare(`
+                        SELECT
+                            (
+                                SELECT COUNT(*)
+                                FROM (
+                                    SELECT
+                                        anchor_block_hash,
+                                        anchor_operation_index
+                                    FROM anchor_inputs
+                                    GROUP BY
+                                        anchor_block_hash,
+                                        anchor_operation_index
+                                )
+                            ) AS total,
+                            COUNT(*) AS relationships,
+                            COUNT(
+                                DISTINCT source_address
+                            ) AS accounts,
+                            MAX(timestamp) AS latest_timestamp
+                        FROM anchor_inputs
+                    `).get();
+
+                const anchorActivityNewestFirst =
+                    database.prepare(`
+                        SELECT
+                            day,
+                            COUNT(*) AS anchors
+                        FROM (
+                            SELECT
+                                substr(
+                                    timestamp,
+                                    1,
+                                    10
+                                ) AS day,
+                                anchor_block_hash,
+                                anchor_operation_index
+                            FROM anchor_inputs
+                            WHERE timestamp >= (
+                                SELECT date(
+                                    MAX(timestamp),
+                                    '-13 days'
+                                )
+                                FROM anchor_inputs
+                            )
+                            GROUP BY
+                                day,
+                                anchor_block_hash,
+                                anchor_operation_index
+                        )
+                        GROUP BY day
+                        ORDER BY day DESC
+                        LIMIT 14
+                    `).all();
+
+                const recentAnchors =
+                    database.prepare(`
+                        SELECT
+                            anchor_block_hash AS block_hash,
+                            anchor_operation_index AS operation_index,
+                            MIN(source_address) AS source_address,
+                            COUNT(*) AS relationships,
+                            MAX(timestamp) AS timestamp
+                        FROM anchor_inputs
+                        GROUP BY
+                            anchor_block_hash,
+                            anchor_operation_index
+                        ORDER BY timestamp DESC
+                        LIMIT 20
+                    `).all();
+
                 const analyticsData = {
                     summary: {
                         blocks:
@@ -1215,7 +1286,30 @@ const server =
                     topSenders,
                     topRecipients,
                     tokenActivity,
-                    recentTransfers
+                    recentTransfers,
+                    anchors: {
+                        summary: {
+                            total:
+                                Number(
+                                    anchorSummary.total || 0
+                                ),
+                            relationships:
+                                Number(
+                                    anchorSummary.relationships || 0
+                                ),
+                            accounts:
+                                Number(
+                                    anchorSummary.accounts || 0
+                                ),
+                            latestTimestamp:
+                                anchorSummary.latest_timestamp
+                        },
+                        activity:
+                            anchorActivityNewestFirst
+                                .reverse(),
+                        recent:
+                            recentAnchors
+                    }
                 };
 
                 analyticsCache = {

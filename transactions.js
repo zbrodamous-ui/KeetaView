@@ -24,6 +24,14 @@ let currentPage = 1;
 let totalOperations = 0;
 let loadedOperations = [];
 
+if (
+    new URLSearchParams(
+        window.location.search
+    ).get("view") === "anchors"
+) {
+    transactionScope.value = "anchors";
+}
+
 function shortValue(value, start = 12, end = 6) {
     if (!value || value === "Not available") {
         return value || "Not available";
@@ -494,6 +502,30 @@ transactionScope.addEventListener(
     () => {
         currentPage = 1;
         transactionFilter.value = "";
+
+        const pageUrl =
+            new URL(window.location.href);
+
+        if (
+            transactionScope.value ===
+            "anchors"
+        ) {
+            pageUrl.searchParams.set(
+                "view",
+                "anchors"
+            );
+        } else {
+            pageUrl.searchParams.delete(
+                "view"
+            );
+        }
+
+        window.history.replaceState(
+            {},
+            "",
+            pageUrl
+        );
+
         loadOperationsPage();
     }
 );

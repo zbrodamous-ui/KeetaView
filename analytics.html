@@ -61,7 +61,7 @@
 <nav class="home-navigation" aria-label="Main navigation">
     <a href="index.html">Home</a>
     <a href="blocks.html">Blocks</a>
-    <a href="transactions.html">Transactions</a>
+    <a href="transactions.html?view=anchors">Transactions</a>
     <a href="addresses.html">Addresses</a>
     <a href="assets.html">Assets</a>
     <a href="analytics.html" class="active">Analytics</a>
@@ -177,6 +177,75 @@
                     These figures describe this local KeetaView index,
                     not guaranteed network-wide totals.
                 </p>
+            </article>
+        </section>
+
+        <section class="analytics-summary-grid" aria-label="Anchor analytics">
+            <article class="analytics-metric-card">
+                <span>Indexed Anchors</span>
+                <strong id="analyticsAnchors">—</strong>
+                <small>Distinct Anchor operations</small>
+            </article>
+
+            <article class="analytics-metric-card">
+                <span>Anchor Relationships</span>
+                <strong id="anchorRelationships">—</strong>
+                <small>Indexed input references</small>
+            </article>
+
+            <article class="analytics-metric-card">
+                <span>Anchor Accounts</span>
+                <strong id="anchorAccounts">—</strong>
+                <small>Unique source addresses</small>
+            </article>
+
+            <article class="analytics-metric-card">
+                <span>Latest Anchor</span>
+                <strong id="latestAnchor">—</strong>
+                <small>Most recently indexed activity</small>
+            </article>
+        </section>
+
+        <section class="analytics-two-column">
+            <article class="analytics-dashboard-card analytics-chart-card">
+                <header class="analytics-card-header">
+                    <div>
+                        <p class="home-eyebrow">ANCHOR ACTIVITY</p>
+                        <h2>Anchors by Day</h2>
+                    </div>
+
+                    <span class="analytics-range-label">
+                        Latest 14 indexed days
+                    </span>
+                </header>
+
+                <div
+                    id="anchorActivityChart"
+                    class="analytics-bar-chart"
+                    aria-label="Indexed Anchors by day"
+                >
+                    Loading Anchor activity…
+                </div>
+            </article>
+
+            <article class="analytics-dashboard-card">
+                <header class="analytics-card-header">
+                    <div>
+                        <p class="home-eyebrow">LATEST INDEXED</p>
+                        <h2>Recent Anchors</h2>
+                    </div>
+
+                    <a
+                        class="analytics-range-label"
+                        href="transactions.html"
+                    >
+                        Browse all
+                    </a>
+                </header>
+
+                <div id="recentAnchors" class="analytics-transfer-list">
+                    Loading Anchors…
+                </div>
             </article>
         </section>
 
