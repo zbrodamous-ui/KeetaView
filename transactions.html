@@ -78,15 +78,25 @@
             </p>
         </div>
 
-        <label class="transaction-filter">
-            <span>Filter operations on this page</span>
-            <input
-                id="transactionFilter"
-                type="search"
-                placeholder="Type, block, address, or asset"
-                autocomplete="off"
-            >
-        </label>
+        <div class="transaction-filter-controls">
+            <label class="transaction-filter">
+                <span>Operation view</span>
+                <select id="transactionScope">
+                    <option value="all">All Operations</option>
+                    <option value="anchors">Anchors</option>
+                </select>
+            </label>
+
+            <label class="transaction-filter">
+                <span>Filter operations on this page</span>
+                <input
+                    id="transactionFilter"
+                    type="search"
+                    placeholder="Type, block, address, or asset"
+                    autocomplete="off"
+                >
+            </label>
+        </div>
     </header>
 
     <section
