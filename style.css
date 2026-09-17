@@ -6373,7 +6373,8 @@ html[data-theme="soft"] .transaction-filter span {
     color: #b8b8b8 !important;
 }
 
-html[data-theme="soft"] .transaction-filter input {
+html[data-theme="soft"] .transaction-filter input,
+html[data-theme="soft"] .transaction-filter select {
     background: #0a0a0a !important;
     border-color: #2a2a2a !important;
     color: #ffffff !important;
