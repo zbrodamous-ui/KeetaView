@@ -54,6 +54,11 @@ const marketCache = new Map();
 
 const marketCacheDuration = 60 * 1000;
 
+let analyticsCache = null;
+
+const analyticsCacheDuration =
+    60 * 1000;
+
 function isAllowedLocalOrigin(origin) {
     if (!origin) {
         return false;
@@ -932,6 +937,21 @@ if (
                 request.method === "GET" &&
                 url.pathname === "/api/analytics"
             ) {
+                const analyticsCacheIsFresh =
+                    analyticsCache &&
+                    Date.now() -
+                        analyticsCache.createdAt <
+                        analyticsCacheDuration;
+
+                if (analyticsCacheIsFresh) {
+                    sendJson(
+                        response,
+                        200,
+                        analyticsCache.data
+                    );
+
+                    return;
+                }
                 const blockSummary =
                     database.prepare(`
                         SELECT
@@ -1029,39 +1049,46 @@ if (
                         LIMIT 100
                     `).all();
 
+                const analyticsData = {
+                    summary: {
+                        blocks:
+                            blockSummary.blocks,
+                        operations:
+                            operationTotal,
+                        transfers:
+                            transferTotal,
+                        accounts:
+                            accountTotal,
+                        averageOperations:
+                            Number(
+                                blockSummary
+                                    .average_operations
+                            ),
+                        firstTimestamp:
+                            blockSummary
+                                .first_timestamp,
+                        latestTimestamp:
+                            blockSummary
+                                .latest_timestamp
+                    },
+                    activity:
+                        activityNewestFirst
+                            .reverse(),
+                    topSenders,
+                    topRecipients,
+                    tokenActivity,
+                    recentTransfers
+                };
+
+                analyticsCache = {
+                    createdAt: Date.now(),
+                    data: analyticsData
+                };
+
                 sendJson(
                     response,
                     200,
-                    {
-                        summary: {
-                            blocks:
-                                blockSummary.blocks,
-                            operations:
-                                operationTotal,
-                            transfers:
-                                transferTotal,
-                            accounts:
-                                accountTotal,
-                            averageOperations:
-                                Number(
-                                    blockSummary
-                                        .average_operations
-                                ),
-                            firstTimestamp:
-                                blockSummary
-                                    .first_timestamp,
-                            latestTimestamp:
-                                blockSummary
-                                    .latest_timestamp
-                        },
-                        activity:
-                            activityNewestFirst
-                                .reverse(),
-                        topSenders,
-                        topRecipients,
-                        tokenActivity,
-                        recentTransfers
-                    }
+                    analyticsData
                 );
 
                 return;
