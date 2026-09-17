@@ -1029,6 +1029,13 @@ if (
                             substr(timestamp, 1, 10) AS day,
                             COUNT(*) AS transfers
                         FROM transfers
+                        WHERE timestamp >= (
+                            SELECT date(
+                                MAX(timestamp),
+                                '-13 days'
+                            )
+                            FROM transfers
+                        )
                         GROUP BY day
                         ORDER BY day DESC
                         LIMIT 14
