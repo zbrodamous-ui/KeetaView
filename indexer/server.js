@@ -946,6 +946,48 @@ const server =
 
             if (
                 request.method === "GET" &&
+                url.pathname === "/api/anchors"
+            ) {
+                const address = url.searchParams.get("address");
+                const requestedLimit = Number(url.searchParams.get("limit"));
+                const limit = Number.isInteger(requestedLimit) && requestedLimit > 0
+                    ? Math.min(requestedLimit, 100)
+                    : 20;
+
+                if (!address) {
+                    sendJson(response, 400, {
+                        error: "An Anchor source address is required."
+                    });
+                    return;
+                }
+
+                const anchors = database.prepare(`
+                    SELECT
+                        anchors.block_hash,
+                        anchors.operation_index,
+                        anchors.anchor_transaction_id,
+                        anchors.payload_version,
+                        anchors.signature_status,
+                        anchors.signer_address,
+                        anchors.signature_error,
+                        anchors.timestamp,
+                        COUNT(anchor_inputs.input_index) AS relationships
+                    FROM anchors
+                    LEFT JOIN anchor_inputs
+                        ON anchor_inputs.anchor_block_hash = anchors.block_hash
+                        AND anchor_inputs.anchor_operation_index = anchors.operation_index
+                    WHERE anchors.source_address = ?
+                    GROUP BY anchors.block_hash, anchors.operation_index
+                    ORDER BY anchors.timestamp DESC
+                    LIMIT ?
+                `).all(address, limit);
+
+                sendJson(response, 200, anchors);
+                return;
+            }
+
+            if (
+                request.method === "GET" &&
                 url.pathname === "/api/accounts"
             ) {
                 const requestedLimit =

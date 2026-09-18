@@ -83,6 +83,12 @@ async function loadAddress() {
         const balancesList =
             document.getElementById("balancesList");
 
+        const addressAnchors =
+            document.getElementById("addressAnchors");
+
+        const addressAnchorList =
+            document.getElementById("addressAnchorList");
+
         addressTitle.textContent = "Address";
 
         addressDetails.innerHTML = `
@@ -163,6 +169,56 @@ let formattedBalance =
             `;
 
             balancesList.appendChild(card);
+        }
+
+        const anchorResponse = await fetchKeetaView(
+            `http://localhost:3000/api/anchors?limit=20&address=${encodeURIComponent(
+                address
+            )}`
+        );
+
+        if (anchorResponse.ok) {
+            const anchors = await anchorResponse.json();
+
+            if (anchors.length > 0) {
+                addressAnchorList.replaceChildren();
+
+                for (const anchor of anchors) {
+                    const row = document.createElement("a");
+                    const status = anchor.signature_status || "unknown";
+                    const statusLabel = {
+                        verified: "Verified",
+                        unsigned: "Unsigned",
+                        invalid: "Invalid"
+                    }[status] || "Unknown";
+
+                    row.className = "address-anchor-row";
+                    row.href =
+                        `transaction.html?block=${encodeURIComponent(
+                            anchor.block_hash
+                        )}&operation=${anchor.operation_index}`;
+                    row.innerHTML = `
+                        <span class="address-anchor-identity">
+                            <strong>${escapeKeetaHtml(
+                                anchor.anchor_transaction_id ||
+                                `${anchor.block_hash.slice(0, 12)}...:${anchor.operation_index}`
+                            )}</strong>
+                            <small>${timeAgo(new Date(anchor.timestamp))}</small>
+                        </span>
+                        <span class="anchor-verification anchor-verification-${escapeKeetaHtml(status)}">
+                            ${escapeKeetaHtml(statusLabel)}
+                        </span>
+                        <span class="address-anchor-relationships">
+                            ${Number(anchor.relationships).toLocaleString()}
+                            relationship${Number(anchor.relationships) === 1 ? "" : "s"}
+                        </span>
+                    `;
+
+                    addressAnchorList.appendChild(row);
+                }
+
+                addressAnchors.hidden = false;
+            }
         }
 
 const addressActivityList =
