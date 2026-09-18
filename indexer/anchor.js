@@ -1,4 +1,80 @@
 import { inflateSync } from "node:zlib";
+import { lib as AnchorLib } from "@keetanetwork/anchor";
+
+function readValue(value) {
+    return value?.get?.() ?? value?.toString?.() ?? value;
+}
+
+export function toEncodedAnchorPayload(envelope) {
+    if (!envelope || typeof envelope !== "object") {
+        return null;
+    }
+
+    const anchors = {};
+
+    for (const [address, metadata] of Object.entries(envelope.anchors || {})) {
+        if (metadata?.transactionId !== undefined) {
+            anchors[address] = { t: readValue(metadata.transactionId) };
+        } else if (metadata?.persistentForwardingId !== undefined) {
+            anchors[address] = { p: readValue(metadata.persistentForwardingId) };
+        } else if (metadata?.destination !== undefined) {
+            anchors[address] = { d: readValue(metadata.destination) };
+        }
+    }
+
+    const payload = {
+        v: Number(envelope.version),
+        a: anchors
+    };
+
+    if (envelope.binding) {
+        payload.b = {
+            p: readValue(envelope.binding.previousBlockHash),
+            o: Number(envelope.binding.operationIndex)
+        };
+    }
+
+    if (Array.isArray(envelope.inputs)) {
+        payload.i = envelope.inputs.map((input) => ({
+            h: readValue(input.blockHash),
+            ...(input.operationIndex === undefined
+                ? {}
+                : { o: Number(input.operationIndex) })
+        }));
+    }
+
+    return payload;
+}
+
+export async function inspectAnchorPayload(external) {
+    if (typeof external !== "string" || external.length === 0) {
+        return { payload: null, status: null, signer: null, error: null };
+    }
+
+    try {
+        const decoded = await AnchorLib.AnchorExternal.fromPlainExternal(external);
+
+        return {
+            payload: toEncodedAnchorPayload(decoded.envelope),
+            status: decoded.signed ? "verified" : "unsigned",
+            signer: decoded.signed
+                ? readValue(decoded.signed.signer?.publicKeyString)
+                : null,
+            error: null
+        };
+    } catch (error) {
+        const payload = decodeAnchorPayload(external);
+
+        return {
+            payload,
+            status: payload ? "invalid" : null,
+            signer: null,
+            error: payload
+                ? String(error?.code || error?.message || "INVALID_ANCHOR")
+                : null
+        };
+    }
+}
 
 export function decodeAnchorPayload(external) {
     if (

@@ -1485,6 +1485,15 @@ async function loadAnalytics() {
                 anchors.summary.relationships || 0
             ).toLocaleString();
 
+        for (const [elementId, field] of [
+            ["verifiedAnchors", "verified"],
+            ["unsignedAnchors", "unsigned"],
+            ["invalidAnchors", "invalid"]
+        ]) {
+            document.getElementById(elementId).textContent =
+                Number(anchors.summary[field] || 0).toLocaleString();
+        }
+
         document.getElementById(
             "anchorAccounts"
         ).textContent =

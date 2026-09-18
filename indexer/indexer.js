@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import {
-    decodeAnchorPayload
+    inspectAnchorPayload
 } from "./anchor.js";
 import * as KeetaNet from "@keetanetwork/keetanet-client";
 
@@ -98,6 +98,14 @@ const operationsTableAlreadyExisted =
         `).get()
     );
 
+const anchorsTableAlreadyExisted = Boolean(
+    database.prepare(`
+        SELECT 1 FROM sqlite_master
+        WHERE type = 'table' AND name = 'anchors'
+        LIMIT 1
+    `).get()
+);
+
 database.exec(`
     PRAGMA journal_mode = WAL;
     PRAGMA busy_timeout = 5000;
@@ -143,6 +151,21 @@ database.exec(`
         amount TEXT,
         timestamp TEXT NOT NULL,
         details_json TEXT,
+        PRIMARY KEY (block_hash, operation_index)
+    )
+`);
+
+database.exec(`
+    CREATE TABLE IF NOT EXISTS anchors (
+        block_hash TEXT NOT NULL,
+        operation_index INTEGER NOT NULL,
+        source_address TEXT,
+        anchor_transaction_id TEXT,
+        payload_version INTEGER NOT NULL,
+        signature_status TEXT NOT NULL,
+        signer_address TEXT,
+        signature_error TEXT,
+        timestamp TEXT NOT NULL,
         PRIMARY KEY (block_hash, operation_index)
     )
 `);
@@ -382,6 +405,15 @@ const insertAnchorInput =
         )
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
+
+const insertAnchor = database.prepare(`
+    INSERT OR REPLACE INTO anchors (
+        block_hash, operation_index, source_address,
+        anchor_transaction_id, payload_version,
+        signature_status, signer_address, signature_error,
+        timestamp
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+`);
 
 const selectHistoricalAnchorOperations =
     database.prepare(`
@@ -782,6 +814,39 @@ function storeAnchorInputs(
     return inserted;
 }
 
+function storeAnchor(
+    blockHash,
+    operationIndex,
+    timestamp,
+    inspection
+) {
+    const payload = inspection?.payload;
+
+    if (!payload) {
+        return 0;
+    }
+
+    const firstAnchor = Object.entries(payload.a || {})[0];
+    insertAnchor.run(
+        blockHash,
+        operationIndex,
+        firstAnchor?.[0] || null,
+        getAnchorTransactionId(firstAnchor?.[1]),
+        payload.v,
+        inspection.status,
+        inspection.signer,
+        inspection.error,
+        timestamp
+    );
+
+    return storeAnchorInputs(
+        blockHash,
+        operationIndex,
+        timestamp,
+        payload
+    );
+}
+
 async function processHistoryEntry(entry) {
     const blocks =
         entry.voteStaple.blocks;
@@ -858,14 +923,14 @@ try {
     external = null;
 }
 
-const anchorPayload =
-    decodeAnchorPayload(external);
+const anchorInspection =
+    await inspectAnchorPayload(external);
 
-storeAnchorInputs(
+storeAnchor(
     operationBlockHash,
     operationIndex,
     timestamp,
-    anchorPayload
+    anchorInspection
 );
 
             if (recipient) {
@@ -914,7 +979,7 @@ state.transfersFound =
 }
 }
 
-function backfillHistoricalAnchorInputs(
+async function backfillHistoricalAnchorInputs(
     batchSize = 10_000
 ) {
     if (state.anchorInputBackfillComplete) {
@@ -950,12 +1015,11 @@ function backfillHistoricalAnchorInputs(
             continue;
         }
 
-        inserted +=
-            storeAnchorInputs(
+        inserted += storeAnchor(
                 operation.block_hash,
                 operation.operation_index,
                 operation.timestamp,
-                decodeAnchorPayload(external)
+                await inspectAnchorPayload(external)
             );
     }
 
@@ -1030,6 +1094,14 @@ if (fs.existsSync(stateFile)) {
         );
 
         state.historyCursor = null;
+    }
+
+    if (databaseAlreadyExisted && !anchorsTableAlreadyExisted) {
+        console.log(
+            "New Anchor verification index detected. Restarting Anchor backfill."
+        );
+        state.anchorInputBackfillCursor = 0;
+        state.anchorInputBackfillComplete = false;
     }
 
     if (!databaseAlreadyExisted) {
@@ -1180,7 +1252,7 @@ if (watchMode) {
         }
 
         try {
-            backfillHistoricalAnchorInputs();
+            await backfillHistoricalAnchorInputs();
         } catch (error) {
             console.error(
                 "Historical Anchor input backfill failed:",
