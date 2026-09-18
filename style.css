@@ -2673,6 +2673,79 @@ html[data-theme="clean"] .address-detail-shell #balancesList .operation-card {
     background: #ffffff;
 }
 
+.address-detail-shell #addressAnchors {
+    margin-top: 34px;
+}
+
+.address-section-heading {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+}
+
+.address-section-heading .section-title,
+.address-section-heading .home-eyebrow {
+    margin: 0;
+}
+
+.address-anchor-list {
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+}
+
+.address-anchor-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(130px, auto);
+    align-items: center;
+    gap: 18px;
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--border-color);
+    color: inherit;
+    text-decoration: none;
+}
+
+.address-anchor-row:last-child {
+    border-bottom: 0;
+}
+
+.address-anchor-row:hover {
+    background: var(--row-hover);
+}
+
+.address-anchor-identity {
+    min-width: 0;
+}
+
+.address-anchor-identity strong,
+.address-anchor-identity small {
+    display: block;
+}
+
+.address-anchor-identity strong {
+    overflow: hidden;
+    color: var(--link-color);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.address-anchor-identity small,
+.address-anchor-relationships {
+    color: var(--muted-text, #718096);
+}
+
+@media (max-width: 700px) {
+    .address-anchor-row {
+        grid-template-columns: 1fr auto;
+    }
+
+    .address-anchor-relationships {
+        grid-column: 1 / -1;
+    }
+}
+
 @media (max-width: 700px) {
     .address-detail-shell.address-page {
         width: min(100% - 24px, 1180px);
