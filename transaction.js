@@ -139,6 +139,9 @@ async function loadTransaction() {
         document.getElementById(
             "anchorVersion"
         );
+    const anchorVerification = document.getElementById(
+        "anchorVerification"
+    );
 
             const anchorBacklinks =
         document.getElementById(
@@ -281,6 +284,7 @@ async function loadTransaction() {
             )}</a>`;
 
 const anchor = transaction.anchor;
+const verification = transaction.anchor_verification;
 const anchorEntry =
     Object.entries(
         anchor?.a || {}
@@ -290,6 +294,21 @@ if (
     anchor &&
     anchorEntry
 ) {
+    const verificationLabels = {
+        verified: "Verified signature",
+        unsigned: "Valid unsigned payload",
+        invalid: "Invalid signature or payload"
+    };
+    anchorVerification.textContent =
+        verificationLabels[verification?.status] || "Detected";
+    anchorVerification.className =
+        `anchor-verification anchor-verification-${verification?.status || "unknown"}`;
+    if (verification?.signer) {
+        anchorVerification.title = `Signer: ${verification.signer}`;
+    } else if (verification?.error) {
+        anchorVerification.title = verification.error;
+    }
+
     const [
         addressValue,
         anchorMetadata

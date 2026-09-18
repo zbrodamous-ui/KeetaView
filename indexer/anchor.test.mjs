@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { deflateSync } from "node:zlib";
-import { decodeAnchorPayload } from "./anchor.js";
+import { lib as AnchorLib } from "@keetanetwork/anchor";
+import { lib as KeetaNetLib } from "@keetanetwork/keetanet-client";
+import {
+    decodeAnchorPayload,
+    inspectAnchorPayload,
+    toEncodedAnchorPayload
+} from "./anchor.js";
 
 function encodeEnvelope(payload) {
     const prefix = Buffer.from([
@@ -48,6 +54,78 @@ test(
         );
     }
 );
+
+test("normalizes an official expanded Anchor envelope", () => {
+    assert.deepEqual(
+        toEncodedAnchorPayload({
+            version: 1,
+            anchors: {
+                keeta_anchor: { transactionId: "anchor-123" }
+            },
+            binding: {
+                previousBlockHash: "previous-block",
+                operationIndex: 4
+            },
+            inputs: [{ blockHash: "input-block", operationIndex: 2 }]
+        }),
+        {
+            v: 1,
+            a: { keeta_anchor: { t: "anchor-123" } },
+            b: { p: "previous-block", o: 4 },
+            i: [{ h: "input-block", o: 2 }]
+        }
+    );
+});
+
+test("marks recognizable payloads rejected by the SDK as invalid", async () => {
+    const inspection = await inspectAnchorPayload(
+        encodeEnvelope({
+            v: 1,
+            a: { keeta_anchor: { t: "anchor-123" } }
+        })
+    );
+
+    assert.equal(inspection.status, "invalid");
+    assert.equal(inspection.payload.v, 1);
+    assert.equal(inspection.signer, null);
+});
+
+test("recognizes an official unsigned Anchor envelope", async () => {
+    const anchor = KeetaNetLib.Account.fromSeed("11".repeat(32), 0);
+    const external = await new AnchorLib.AnchorExternal.Builder()
+        .setAnchor(anchor, { transactionId: "official-123" })
+        .addInput("input-block", 3)
+        .build();
+
+    const inspection = await inspectAnchorPayload(external);
+
+    assert.equal(inspection.status, "unsigned");
+    assert.equal(inspection.signer, null);
+    assert.deepEqual(inspection.payload.i, [
+        { h: "input-block", o: 3 }
+    ]);
+});
+
+test("verifies an official signed Anchor envelope", async () => {
+    const signer = KeetaNetLib.Account.fromSeed("22".repeat(32), 0);
+    const external = await new AnchorLib.AnchorExternal.Builder()
+        .setAnchor(signer, { transactionId: "signed-123" })
+        .withSigner(signer)
+        .withBinding("33".repeat(32), 1)
+        .build();
+
+    const inspection = await inspectAnchorPayload(external);
+
+    assert.equal(inspection.status, "verified");
+    assert.equal(
+        inspection.signer,
+        signer.publicKeyString.get()
+    );
+    assert.deepEqual(inspection.payload.b, {
+        p: "33".repeat(32).toUpperCase(),
+        o: 1
+    });
+});
 
 test(
     "accepts an anchor payload without an optional binding",

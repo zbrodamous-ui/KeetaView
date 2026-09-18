@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import {
-    decodeAnchorPayload
+    inspectAnchorPayload
 } from "./anchor.js";
 
 const dataDirectory =
@@ -608,18 +608,23 @@ const server =
                     return;
                 }
 
-                let anchor = null;
+                let anchorInspection = {
+                    payload: null,
+                    status: null,
+                    signer: null,
+                    error: null
+                };
 
                 try {
                     const details = JSON.parse(
                         operation.details_json
                     );
 
-                    anchor = decodeAnchorPayload(
+                    anchorInspection = await inspectAnchorPayload(
                         details?.external
                     );
                 } catch {
-                    anchor = null;
+                    // Leave the empty inspection result in place.
                 }
 
                 const anchorInputs =
@@ -653,7 +658,12 @@ const server =
                     200,
                     {
                         ...operation,
-                        anchor,
+                        anchor: anchorInspection.payload,
+                        anchor_verification: {
+                            status: anchorInspection.status,
+                            signer: anchorInspection.signer,
+                            error: anchorInspection.error
+                        },
                         anchor_inputs:
                             anchorInputs
                     }
@@ -718,9 +728,9 @@ const server =
                         ? `
                             INNER JOIN (
                                 SELECT DISTINCT
-                                    anchor_block_hash,
-                                    anchor_operation_index
-                                FROM anchor_inputs
+                                    block_hash AS anchor_block_hash,
+                                    operation_index AS anchor_operation_index
+                                FROM anchors
                             ) AS anchor_operations
                                 ON anchor_operations.anchor_block_hash =
                                     operations.block_hash
@@ -732,16 +742,20 @@ const server =
                 const operations =
                     database.prepare(`
                         SELECT
-                            block_hash,
-                            operation_index,
-                            operation_type,
-                            sender,
-                            recipient,
-                            token,
-                            amount,
-                            timestamp,
-                            details_json
+                            operations.block_hash,
+                            operations.operation_index,
+                            operations.operation_type,
+                            operations.sender,
+                            operations.recipient,
+                            operations.token,
+                            operations.amount,
+                            operations.timestamp,
+                            operations.details_json,
+                            anchors.signature_status AS anchor_signature_status
                         FROM operations
+                        LEFT JOIN anchors
+                            ON anchors.block_hash = operations.block_hash
+                            AND anchors.operation_index = operations.operation_index
                         ${anchorJoin}
                         ${whereClause}
                         ORDER BY operations.timestamp DESC,
@@ -755,29 +769,12 @@ const server =
                         offset
                     );
 
-                const operationsWithAnchorStatus =
-                    operations.map((operation) => {
-                        let external = null;
-
-                        try {
-                            external =
-                                JSON.parse(
-                                    operation.details_json
-                                )?.external;
-                        } catch {
-                            external = null;
-                        }
-
-                        return {
-                            ...operation,
-                            is_anchor:
-                                Boolean(
-                                    decodeAnchorPayload(
-                                        external
-                                    )
-                                )
-                        };
-                    });
+                const operationsWithAnchorStatus = operations.map(
+                    (operation) => ({
+                        ...operation,
+                        is_anchor: Boolean(operation.anchor_signature_status)
+                    })
+                );
 
                 if (anchorsOnly) {
                     const anchorTotal =
@@ -1190,24 +1187,14 @@ const server =
                 const anchorSummary =
                     database.prepare(`
                         SELECT
-                            (
-                                SELECT COUNT(*)
-                                FROM (
-                                    SELECT
-                                        anchor_block_hash,
-                                        anchor_operation_index
-                                    FROM anchor_inputs
-                                    GROUP BY
-                                        anchor_block_hash,
-                                        anchor_operation_index
-                                )
-                            ) AS total,
-                            COUNT(*) AS relationships,
-                            COUNT(
-                                DISTINCT source_address
-                            ) AS accounts,
-                            MAX(timestamp) AS latest_timestamp
-                        FROM anchor_inputs
+                            COUNT(*) AS total,
+                            COUNT(DISTINCT source_address) AS accounts,
+                            MAX(timestamp) AS latest_timestamp,
+                            SUM(signature_status = 'verified') AS verified,
+                            SUM(signature_status = 'unsigned') AS unsigned,
+                            SUM(signature_status = 'invalid') AS invalid,
+                            (SELECT COUNT(*) FROM anchor_inputs) AS relationships
+                        FROM anchors
                     `).get();
 
                 const anchorActivityNewestFirst =
@@ -1222,20 +1209,20 @@ const server =
                                     1,
                                     10
                                 ) AS day,
-                                anchor_block_hash,
-                                anchor_operation_index
-                            FROM anchor_inputs
+                                block_hash,
+                                operation_index
+                            FROM anchors
                             WHERE timestamp >= (
                                 SELECT date(
                                     MAX(timestamp),
                                     '-13 days'
                                 )
-                                FROM anchor_inputs
+                                FROM anchors
                             )
                             GROUP BY
                                 day,
-                                anchor_block_hash,
-                                anchor_operation_index
+                                block_hash,
+                                operation_index
                         )
                         GROUP BY day
                         ORDER BY day DESC
@@ -1245,16 +1232,18 @@ const server =
                 const recentAnchors =
                     database.prepare(`
                         SELECT
-                            anchor_block_hash AS block_hash,
-                            anchor_operation_index AS operation_index,
-                            MIN(source_address) AS source_address,
-                            COUNT(*) AS relationships,
-                            MAX(timestamp) AS timestamp
-                        FROM anchor_inputs
-                        GROUP BY
-                            anchor_block_hash,
-                            anchor_operation_index
-                        ORDER BY timestamp DESC
+                            anchors.block_hash,
+                            anchors.operation_index,
+                            anchors.source_address,
+                            anchors.signature_status,
+                            COUNT(anchor_inputs.input_index) AS relationships,
+                            anchors.timestamp
+                        FROM anchors
+                        LEFT JOIN anchor_inputs
+                            ON anchor_inputs.anchor_block_hash = anchors.block_hash
+                            AND anchor_inputs.anchor_operation_index = anchors.operation_index
+                        GROUP BY anchors.block_hash, anchors.operation_index
+                        ORDER BY anchors.timestamp DESC
                         LIMIT 20
                     `).all();
 
@@ -1302,7 +1291,10 @@ const server =
                                     anchorSummary.accounts || 0
                                 ),
                             latestTimestamp:
-                                anchorSummary.latest_timestamp
+                                anchorSummary.latest_timestamp,
+                            verified: Number(anchorSummary.verified || 0),
+                            unsigned: Number(anchorSummary.unsigned || 0),
+                            invalid: Number(anchorSummary.invalid || 0)
                         },
                         activity:
                             anchorActivityNewestFirst

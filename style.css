@@ -229,6 +229,36 @@ body {
     font-weight: bold;
 }
 
+.anchor-verification {
+    font-weight: 700;
+}
+
+.anchor-verification-verified {
+    color: #7ee2a2;
+}
+
+.anchor-verification-unsigned,
+.anchor-verification-unknown {
+    color: #aeb6c2;
+}
+
+.anchor-verification-invalid {
+    color: #ff7b7b;
+}
+
+.anchor-verification-counts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    margin-top: 8px;
+    color: #8e99a8;
+    font-size: 0.75rem;
+}
+
+.anchor-verification-counts b {
+    color: inherit;
+}
+
 
 
 /* ==========================
