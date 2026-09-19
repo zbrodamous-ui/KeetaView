@@ -77,6 +77,10 @@ let marketChartPoints = [];
 let marketChartVolumes = [];
 let activeMarketRange = "1d";
 
+searchType.addEventListener("change", () => {
+    searchInput.setCustomValidity("");
+});
+
 async function runSearch() {
     const searchText =
         searchInput.value.trim();
