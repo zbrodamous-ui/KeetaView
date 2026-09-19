@@ -143,6 +143,27 @@ async function runSearch() {
         return;
     }
 
+    if (selectedType === "anchor") {
+        const destination =
+            await resolveAnchorDestination(searchText);
+
+        if (destination) {
+            window.location.assign(destination);
+            return;
+        }
+
+        searchInput.setCustomValidity(
+            "No indexed Anchor matches that ID."
+        );
+        searchInput.reportValidity();
+        searchInput.addEventListener(
+            "input",
+            () => searchInput.setCustomValidity(""),
+            { once: true }
+        );
+        return;
+    }
+
     if (searchText.startsWith("keeta_")) {
         window.location.assign(
             `address.html?address=${encodeURIComponent(
