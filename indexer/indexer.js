@@ -243,6 +243,14 @@ database.exec(`
     CREATE INDEX IF NOT EXISTS
         anchor_inputs_by_source
     ON anchor_inputs(source_address);
+
+    CREATE INDEX IF NOT EXISTS
+        anchors_by_source
+    ON anchors(source_address);
+
+    CREATE INDEX IF NOT EXISTS
+        anchors_by_transaction_id
+    ON anchors(anchor_transaction_id);
 `);
 
 function getFileSize(file) {

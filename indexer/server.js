@@ -946,6 +946,53 @@ const server =
 
             if (
                 request.method === "GET" &&
+                url.pathname === "/api/anchors/search"
+            ) {
+                const query = String(
+                    url.searchParams.get("query") || ""
+                ).trim();
+
+                if (!query) {
+                    sendJson(response, 400, {
+                        error: "An Anchor ID or Anchor Transaction ID is required."
+                    });
+                    return;
+                }
+
+                const anchor = database.prepare(`
+                    SELECT
+                        block_hash,
+                        operation_index,
+                        source_address,
+                        anchor_transaction_id
+                    FROM anchors
+                    WHERE source_address = ?
+                       OR anchor_transaction_id = ?
+                    ORDER BY
+                        CASE WHEN anchor_transaction_id = ? THEN 0 ELSE 1 END,
+                        timestamp DESC
+                    LIMIT 1
+                `).get(query, query, query);
+
+                if (!anchor) {
+                    sendJson(response, 404, {
+                        error: "No indexed Anchor matches that ID."
+                    });
+                    return;
+                }
+
+                sendJson(response, 200, {
+                    ...anchor,
+                    match_type:
+                        anchor.anchor_transaction_id === query
+                            ? "transaction"
+                            : "account"
+                });
+                return;
+            }
+
+            if (
+                request.method === "GET" &&
                 url.pathname === "/api/anchors"
             ) {
                 const address = url.searchParams.get("address");

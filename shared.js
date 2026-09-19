@@ -3835,6 +3835,36 @@ async function resolveAssetAddress(searchValue) {
         : null;
 }
 
+async function resolveAnchorDestination(searchValue) {
+    const query = String(searchValue || "").trim();
+
+    if (!query) {
+        return null;
+    }
+
+    const response = await fetchKeetaView(
+        `/api/anchors/search?query=${encodeURIComponent(query)}`
+    );
+
+    if (!response.ok) {
+        return null;
+    }
+
+    const anchor = await response.json();
+
+    if (anchor.match_type === "account") {
+        return `address.html?address=${encodeURIComponent(
+            anchor.source_address
+        )}`;
+    }
+
+    return `transaction.html?block=${encodeURIComponent(
+        anchor.block_hash
+    )}&operation=${encodeURIComponent(
+        anchor.operation_index
+    )}`;
+}
+
 function initializeDetailSearch() {
     const form =
         document.getElementById("detailSearchForm");
@@ -3903,6 +3933,27 @@ function initializeDetailSearch() {
 
             input.setCustomValidity(
                 "No matching asset was found."
+            );
+            input.reportValidity();
+            input.addEventListener(
+                "input",
+                () => input.setCustomValidity(""),
+                { once: true }
+            );
+            return;
+        }
+
+        if (type.value.toLowerCase() === "anchor") {
+            const destination =
+                await resolveAnchorDestination(value);
+
+            if (destination) {
+                window.location.assign(destination);
+                return;
+            }
+
+            input.setCustomValidity(
+                "No indexed Anchor matches that ID."
             );
             input.reportValidity();
             input.addEventListener(
