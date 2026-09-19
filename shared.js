@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 50102)
+Total output lines: 4076
+
 function timeAgo(timestamp) {
     const seconds =
         Math.floor(
@@ -1670,11 +1673,7 @@ const keetaViewTranslations = {
         "These totals are not guaranteed to represent the entire network.": "これらの合計がネットワーク全体を表すとは限りません。",
         "INDEXED ACTIVITY": "インデックス活動",
         "Transfers by Day": "日別送金数",
-        "Latest 14 indexed days": "最新14インデックス日",
-        "These figures describe this local KeetaView index, not guaranteed network-wide totals.": "これらの数値はローカルKeetaViewインデックスを示すもので、ネットワーク全体の合計を保証するものではありません。",
-        "TRANSFER ACTIVITY": "送金活動",
-        "Most Active Senders": "最も活発な送信者",
-        "Most Active Recipients": "最も活発な受信者",
+        "Latest 14 indexed days": "最新14インデッ…102 tokens truncated…": "最も活発な受信者",
         "Up to 100 indexed results": "最大100件のインデックス結果",
         "ASSET MOVEMENT": "アセット移動",
         "Most Active Assets": "最も活発なアセット",
@@ -3878,6 +3877,10 @@ function initializeDetailSearch() {
 
     const input =
         document.getElementById("detailSearchInput");
+
+    type.addEventListener("change", () => {
+        input.setCustomValidity("");
+    });
 
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
