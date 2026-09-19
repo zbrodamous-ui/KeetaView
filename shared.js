@@ -3879,6 +3879,10 @@ function initializeDetailSearch() {
     const input =
         document.getElementById("detailSearchInput");
 
+    type.addEventListener("change", () => {
+        input.setCustomValidity("");
+    });
+
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
 
