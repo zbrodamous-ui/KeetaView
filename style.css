@@ -2711,10 +2711,6 @@ html[data-theme="clean"] .address-detail-shell #balancesList .operation-card {
     border-bottom: 0;
 }
 
-.address-anchor-row:hover {
-    background: var(--row-hover);
-}
-
 .address-anchor-identity {
     min-width: 0;
 }
