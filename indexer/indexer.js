@@ -437,6 +437,19 @@ const selectHistoricalAnchorOperations =
         LIMIT ?
     `);
 
+const countOperations =
+    database.prepare(`
+        SELECT COUNT(*) AS total
+        FROM operations
+    `);
+
+const countOperationsAfterRowid =
+    database.prepare(`
+        SELECT COUNT(*) AS total
+        FROM operations
+        WHERE rowid > ?
+    `);
+
     const countAccounts =
     database.prepare(`
         SELECT COUNT(*) AS total
@@ -1005,8 +1018,19 @@ async function backfillHistoricalAnchorInputs(
             batchSize
         );
 
+    const startedAt = performance.now();
+    const totalOperations = Number(
+        countOperations.get().total
+    );
+
     let nextCursor = cursor;
     let inserted = 0;
+    const discoveries = {
+        verified: 0,
+        unsigned: 0,
+        invalid: 0,
+        encrypted: 0
+    };
 
     for (const operation of operations) {
         nextCursor =
@@ -1023,11 +1047,18 @@ async function backfillHistoricalAnchorInputs(
             continue;
         }
 
+        const inspection =
+            await inspectAnchorPayload(external);
+
+        if (inspection?.status in discoveries) {
+            discoveries[inspection.status] += 1;
+        }
+
         inserted += storeAnchor(
                 operation.block_hash,
                 operation.operation_index,
                 operation.timestamp,
-                await inspectAnchorPayload(external)
+                inspection
             );
     }
 
@@ -1044,6 +1075,29 @@ async function backfillHistoricalAnchorInputs(
         JSON.stringify(state, null, 2)
     );
 
+    const remainingOperations = Number(
+        countOperationsAfterRowid.get(nextCursor).total
+    );
+    const elapsedMilliseconds =
+        performance.now() - startedAt;
+    const estimatedRemainingMinutes =
+        operations.length > 0
+            ? Number((
+                remainingOperations /
+                operations.length *
+                elapsedMilliseconds /
+                60_000
+            ).toFixed(1))
+            : 0;
+    const progressPercent =
+        totalOperations === 0
+            ? 100
+            : Number((
+                (totalOperations - remainingOperations) /
+                totalOperations *
+                100
+            ).toFixed(1));
+
     console.log(
         "Historical Anchor input backfill batch completed.",
         {
@@ -1051,8 +1105,14 @@ async function backfillHistoricalAnchorInputs(
                 operations.length,
             relationshipsStored:
                 inserted,
+            discoveries,
             cursor:
                 state.anchorInputBackfillCursor,
+            totalOperations:
+                totalOperations,
+            remainingOperations,
+            progressPercent,
+            estimatedRemainingMinutes,
             complete:
                 state.anchorInputBackfillComplete
         }

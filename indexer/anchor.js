@@ -48,7 +48,13 @@ export function toEncodedAnchorPayload(envelope) {
 
 export async function inspectAnchorPayload(external) {
     if (typeof external !== "string" || external.length === 0) {
-        return { payload: null, status: null, signer: null, error: null };
+        return {
+            payload: null,
+            status: null,
+            signer: null,
+            error: null,
+            encrypted: false
+        };
     }
 
     try {
@@ -60,9 +66,28 @@ export async function inspectAnchorPayload(external) {
             signer: decoded.signed
                 ? readValue(decoded.signed.signer?.publicKeyString)
                 : null,
-            error: null
+            error: null,
+            encrypted: false
         };
     } catch (error) {
+        if (error?.code === "EXPECTED_PLAIN") {
+            try {
+                const envelope = await AnchorLib.AnchorExternal.peek(external);
+
+                if (envelope?.encrypted) {
+                    return {
+                        payload: null,
+                        status: "encrypted",
+                        signer: null,
+                        error: null,
+                        encrypted: true
+                    };
+                }
+            } catch {
+                // Fall through to the recognizable-payload check.
+            }
+        }
+
         const payload = decodeAnchorPayload(external);
 
         return {
@@ -71,7 +96,8 @@ export async function inspectAnchorPayload(external) {
             signer: null,
             error: payload
                 ? String(error?.code || error?.message || "INVALID_ANCHOR")
-                : null
+                : null,
+            encrypted: false
         };
     }
 }

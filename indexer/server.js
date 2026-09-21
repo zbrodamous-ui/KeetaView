@@ -652,6 +652,21 @@ const server =
                         operationIndex
                     );
 
+                const anchorReferences =
+                    database.prepare(`
+                        SELECT
+                            input_index,
+                            referenced_block_hash,
+                            referenced_operation_index
+                        FROM anchor_inputs
+                        WHERE anchor_block_hash = ?
+                          AND anchor_operation_index = ?
+                        ORDER BY input_index ASC
+                    `).all(
+                        blockHash,
+                        operationIndex
+                    );
+
 
                 sendJson(
                     response,
@@ -662,10 +677,13 @@ const server =
                         anchor_verification: {
                             status: anchorInspection.status,
                             signer: anchorInspection.signer,
-                            error: anchorInspection.error
+                            error: anchorInspection.error,
+                            encrypted: anchorInspection.encrypted
                         },
                         anchor_inputs:
-                            anchorInputs
+                            anchorInputs,
+                        anchor_references:
+                            anchorReferences
                     }
                 );
 

@@ -246,6 +246,10 @@ body {
     color: #ff7b7b;
 }
 
+.anchor-verification-encrypted {
+    color: #e7b45a;
+}
+
 .anchor-verification-counts {
     display: flex;
     flex-wrap: wrap;
