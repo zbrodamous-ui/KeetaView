@@ -3290,6 +3290,41 @@ html[data-theme="clean"] .asset-page-shell .asset-overview-card {
     height: 520px;
 }
 
+.analytics-scroll-shell {
+    position: relative;
+    height: 520px;
+}
+
+.analytics-scroll-shell > .analytics-ranked-list,
+.analytics-scroll-shell > .analytics-transfer-list {
+    height: 100%;
+    scrollbar-width: none;
+}
+
+.analytics-scroll-shell > .analytics-ranked-list::-webkit-scrollbar,
+.analytics-scroll-shell > .analytics-transfer-list::-webkit-scrollbar {
+    display: none;
+}
+
+.analytics-scroll-track {
+    position: absolute;
+    top: 5px;
+    right: 3px;
+    bottom: 5px;
+    width: 6px;
+    pointer-events: none;
+}
+
+.analytics-scroll-thumb {
+    width: 6px;
+    height: 48px;
+    border: 1px solid rgba(0, 0, 0, 0.18);
+    border-radius: 999px;
+    background: #ffffff;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.28);
+    transition: transform 0.06s linear;
+}
+
 .analytics-ranked-list::-webkit-scrollbar,
 .analytics-transfer-list::-webkit-scrollbar {
     width: 10px;
