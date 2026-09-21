@@ -152,6 +152,14 @@ async function loadTransaction() {
         document.getElementById(
             "anchorBacklinkList"
         );
+    const anchorReferences =
+        document.getElementById(
+            "anchorReferences"
+        );
+    const anchorReferenceList =
+        document.getElementById(
+            "anchorReferenceList"
+        );
 
     try {
         const transaction =
@@ -289,6 +297,27 @@ const anchorEntry =
     Object.entries(
         anchor?.a || {}
     )[0];
+
+if (verification?.status === "encrypted") {
+    anchorVerification.textContent =
+        "Encrypted payload";
+    anchorVerification.className =
+        "anchor-verification anchor-verification-encrypted";
+    anchorVerification.title =
+        "The payload contents and signature cannot be decoded or verified without an authorized key.";
+
+    [
+        anchorAddress,
+        anchorName,
+        anchorIdentifier,
+        anchorReference,
+        anchorVersion
+    ].forEach((element) => {
+        element.closest(".detail-row").hidden = true;
+    });
+
+    anchorDetails.hidden = false;
+}
 
 if (
     anchor &&
@@ -432,6 +461,56 @@ if (
     );
 
     anchorBacklinks.hidden = false;
+}
+
+const anchorInputReferences =
+    transaction.anchor_references;
+
+if (
+    Array.isArray(anchorInputReferences) &&
+    anchorInputReferences.length > 0
+) {
+    anchorReferenceList.replaceChildren();
+
+    anchorInputReferences.forEach(
+        (reference, index) => {
+            if (index > 0) {
+                anchorReferenceList.append(
+                    document.createElement("br")
+                );
+            }
+
+            const link = document.createElement("a");
+            const operation =
+                reference.referenced_operation_index;
+
+            if (Number.isInteger(operation)) {
+                link.href =
+                    `transaction.html?block=${encodeURIComponent(
+                        reference.referenced_block_hash
+                    )}&operation=${encodeURIComponent(operation)}`;
+                link.textContent =
+                    `${formatKeetaIdentifier(
+                        reference.referenced_block_hash
+                    )}:${operation}`;
+            } else {
+                link.href =
+                    `block.html?hash=${encodeURIComponent(
+                        reference.referenced_block_hash
+                    )}`;
+                link.textContent =
+                    `${formatKeetaIdentifier(
+                        reference.referenced_block_hash
+                    )} (block)`;
+            }
+
+            link.title =
+                `Anchor input ${reference.input_index + 1}`;
+            anchorReferenceList.append(link);
+        }
+    );
+
+    anchorReferences.hidden = false;
 }
 
     } catch (error) {

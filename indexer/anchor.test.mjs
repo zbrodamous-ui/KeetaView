@@ -127,6 +127,23 @@ test("verifies an official signed Anchor envelope", async () => {
     });
 });
 
+test("recognizes an encrypted Anchor without decoding it", async () => {
+    const anchor = KeetaNetLib.Account.fromSeed("44".repeat(32), 0);
+    const recipient = KeetaNetLib.Account.fromSeed("55".repeat(32), 0);
+    const external = await new AnchorLib.AnchorExternal.Builder()
+        .setAnchor(anchor, { transactionId: "private-123" })
+        .withPrincipals([recipient])
+        .build();
+
+    const inspection = await inspectAnchorPayload(external);
+
+    assert.equal(inspection.status, "encrypted");
+    assert.equal(inspection.encrypted, true);
+    assert.equal(inspection.payload, null);
+    assert.equal(inspection.signer, null);
+    assert.equal(inspection.error, null);
+});
+
 test(
     "accepts an anchor payload without an optional binding",
     () => {
