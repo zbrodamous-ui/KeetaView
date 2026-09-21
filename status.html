@@ -115,6 +115,18 @@
             <strong id="statusOperations">—</strong>
             <small>Operations across indexed blocks</small>
         </article>
+
+        <article class="status-metric-card">
+            <span>Indexed Assets</span>
+            <strong id="statusAssets">—</strong>
+            <small>Distinct assets observed</small>
+        </article>
+
+        <article class="status-metric-card">
+            <span>Indexed Anchors</span>
+            <strong id="statusAnchors">—</strong>
+            <small>Decoded Anchor payloads</small>
+        </article>
     </section>
 
     <section class="status-two-column">
@@ -148,6 +160,18 @@
                 <div>
                     <span
                         class="service-indicator pending"
+                        id="networkIndicator"
+                    ></span>
+                    <div>
+                        <strong>Keeta Network</strong>
+                        <small id="networkEndpoint">Live mainnet nodes</small>
+                    </div>
+                    <span id="networkState">Checking</span>
+                </div>
+
+                <div>
+                    <span
+                        class="service-indicator pending"
                         id="marketIndicator"
                     ></span>
                     <div>
@@ -168,6 +192,21 @@
             </header>
 
             <dl class="status-coverage-list">
+                <div>
+                    <dt>Live Network Head</dt>
+                    <dd id="statusNetworkHead">—</dd>
+                </div>
+
+                <div>
+                    <dt>Index Freshness</dt>
+                    <dd id="statusIndexFreshness">—</dd>
+                </div>
+
+                <div>
+                    <dt>Database Storage</dt>
+                    <dd id="statusDatabaseStorage">—</dd>
+                </div>
+
                 <div>
                     <dt>First Indexed Activity</dt>
                     <dd id="statusFirstIndexed">—</dd>
@@ -192,9 +231,9 @@
     </section>
 
     <article id="statusMessage" class="status-message-card">
-        <strong>Local index disclosure</strong>
+        <strong>KeetaView index disclosure</strong>
         <p>
-            KeetaView displays information stored by this local index.
+            KeetaView displays information stored by its indexed database.
             These totals are not guaranteed to represent the entire network.
         </p>
     </article>

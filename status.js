@@ -20,6 +20,11 @@ const fields = {
     transfers: document.getElementById("statusTransfers"),
     accounts: document.getElementById("statusAccounts"),
     operations: document.getElementById("statusOperations"),
+    assets: document.getElementById("statusAssets"),
+    anchors: document.getElementById("statusAnchors"),
+    networkHead: document.getElementById("statusNetworkHead"),
+    indexFreshness: document.getElementById("statusIndexFreshness"),
+    databaseStorage: document.getElementById("statusDatabaseStorage"),
     firstIndexed: document.getElementById("statusFirstIndexed"),
     latestIndexed: document.getElementById("statusLatestIndexed"),
     averageOperations:
@@ -32,6 +37,12 @@ const databaseIndicator =
     document.getElementById("databaseIndicator");
 const apiState = document.getElementById("apiState");
 const databaseState = document.getElementById("databaseState");
+const networkIndicator =
+    document.getElementById("networkIndicator");
+const networkState =
+    document.getElementById("networkState");
+const networkEndpoint =
+    document.getElementById("networkEndpoint");
 const marketIndicator =
     document.getElementById("marketIndicator");
 const marketState =
@@ -55,6 +66,25 @@ function formatDate(value) {
     return Number.isNaN(date.getTime())
         ? "Not available"
         : formatKeetaDate(date);
+}
+
+function formatStorage(bytes) {
+    const value = Number(bytes);
+
+    if (!Number.isFinite(value) || value < 0) {
+        return "Not available";
+    }
+
+    const units = ["B", "KB", "MB", "GB", "TB"];
+    let size = value;
+    let unitIndex = 0;
+
+    while (size >= 1024 && unitIndex < units.length - 1) {
+        size /= 1024;
+        unitIndex += 1;
+    }
+
+    return `${size.toFixed(unitIndex < 2 ? 0 : 2)} ${units[unitIndex]}`;
 }
 
 function setServiceState(indicator, label, online, text) {
@@ -125,6 +155,63 @@ async function checkMarketFeed() {
     }
 }
 
+async function checkKeetaNetwork() {
+    networkIndicator.classList.remove(
+        "online",
+        "offline"
+    );
+    networkIndicator.classList.add("pending");
+    networkState.textContent = "Checking";
+
+    try {
+        const client =
+            KeetaNet.Client.fromNetwork("main");
+        const statuses =
+            await withKeetaViewTimeout(
+                client.getNetworkStatus()
+            );
+        const blockCounts = statuses
+            .map((node) => node?.ledger?.blockCount)
+            .filter(Number.isFinite);
+
+        if (blockCounts.length === 0) {
+            throw new Error("No live block heights were returned.");
+        }
+
+        const networkHead =
+            Math.max(...blockCounts);
+
+        fields.networkHead.textContent =
+            formatNumber(networkHead);
+        networkEndpoint.textContent =
+            `${blockCounts.length.toLocaleString()} responding ${blockCounts.length === 1 ? "node" : "nodes"}`;
+
+        setServiceState(
+            networkIndicator,
+            networkState,
+            true,
+            "Connected"
+        );
+    } catch (error) {
+        fields.networkHead.textContent =
+            "Not available";
+        networkEndpoint.textContent =
+            "Live mainnet nodes";
+
+        setServiceState(
+            networkIndicator,
+            networkState,
+            false,
+            "Unavailable"
+        );
+
+        console.warn(
+            "Keeta network check failed:",
+            error
+        );
+    }
+}
+
 function setOnlineState() {
     systemStatus.dataset.state = "online";
     systemStatus.querySelector("strong").textContent = "KeetaView API online";
@@ -146,6 +233,12 @@ function setOfflineState(error) {
     setServiceState(
         marketIndicator,
         marketState,
+        false,
+        "Unavailable"
+    );
+    setServiceState(
+        networkIndicator,
+        networkState,
         false,
         "Unavailable"
     );
@@ -172,10 +265,20 @@ function renderStatus(status, analytics) {
         formatNumber(status.accounts ?? summary.accounts);
     fields.operations.textContent =
         formatNumber(summary.operations);
+    fields.assets.textContent =
+        formatNumber(status.assets);
+    fields.anchors.textContent =
+        formatNumber(status.anchors);
+    fields.databaseStorage.textContent =
+        formatStorage(status.databaseBytes);
     fields.firstIndexed.textContent =
         formatDate(summary.firstTimestamp);
     fields.latestIndexed.textContent =
         formatDate(summary.latestTimestamp);
+    fields.indexFreshness.textContent =
+        summary.latestTimestamp
+            ? timeAgo(summary.latestTimestamp)
+            : "Not available";
 
     const average = Number(summary.averageOperations);
     fields.averageOperations.textContent =
@@ -203,7 +306,10 @@ async function loadStatus() {
         renderStatus(status, { summary: status });
         setOnlineState();
 
-        await checkMarketFeed();
+        await Promise.all([
+            checkKeetaNetwork(),
+            checkMarketFeed()
+        ]);
     } catch (error) {
         setOfflineState(error);
         fields.lastChecked.textContent = formatKeetaDate(new Date());

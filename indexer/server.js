@@ -1462,6 +1462,34 @@ const server =
                         FROM operations
                     `).get().total;
 
+                const assets =
+                    database.prepare(`
+                        SELECT COUNT(DISTINCT token) AS total
+                        FROM transfers
+                        WHERE token IS NOT NULL
+                          AND token <> ''
+                    `).get().total;
+
+                const anchors =
+                    database.prepare(`
+                        SELECT COUNT(*) AS total
+                        FROM anchors
+                    `).get().total;
+
+                const databaseBytes = [
+                    databaseFile,
+                    `${databaseFile}-wal`,
+                    `${databaseFile}-shm`
+                ].reduce(
+                    (total, file) =>
+                        total + (
+                            fs.existsSync(file)
+                                ? fs.statSync(file).size
+                                : 0
+                        ),
+                    0
+                );
+
                 sendJson(
                     response,
                     200,
@@ -1471,6 +1499,9 @@ const server =
                         accounts,
                         transfers,
                         operations,
+                        assets,
+                        anchors,
+                        databaseBytes,
                         averageOperations:
                             Number(
                                 blockSummary
