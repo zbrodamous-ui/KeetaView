@@ -1254,18 +1254,10 @@ const server =
                             token,
                             COUNT(*) AS transfers
                         FROM transfers
-                            INDEXED BY transfers_by_timestamp
+                            INDEXED BY transfers_by_token
                         WHERE token IS NOT NULL
-                            AND timestamp >= (
-                                SELECT datetime(
-                                    MAX(timestamp),
-                                    '-24 hours'
-                                )
-                                FROM transfers
-                            )
                         GROUP BY token
                         ORDER BY transfers DESC
-                        LIMIT 100
                     `).all();
 
                 const activityNewestFirst =
