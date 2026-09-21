@@ -924,6 +924,9 @@ const server =
                 request.method === "GET" &&
                 url.pathname === "/api/assets"
             ) {
+                const includeAll =
+                    url.searchParams.get("all") === "true";
+
                 const requestedLimit =
                     Number(
                         url.searchParams.get(
@@ -942,16 +945,23 @@ const server =
                         )
                         : 1000;
 
-                const assets =
-                    database.prepare(`
+                const assetQuery = `
             SELECT DISTINCT
                 token AS address
             FROM transfers
             WHERE token IS NOT NULL
               AND token <> ''
             ORDER BY token
-            LIMIT ?
-        `).all(limit);
+            ${includeAll ? "" : "LIMIT ?"}
+        `;
+
+                const assets = includeAll
+                    ? database.prepare(
+                        assetQuery
+                    ).all()
+                    : database.prepare(
+                        assetQuery
+                    ).all(limit);
 
                 sendJson(
                     response,
