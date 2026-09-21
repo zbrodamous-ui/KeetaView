@@ -446,6 +446,79 @@ function renderRecentTransfers(transfers) {
     });
 }
 
+function initializeAnalyticsScrollIndicators() {
+    const listIds = [
+        "topSenders",
+        "topRecipients",
+        "tokenActivity",
+        "analyticsRecentTransfers"
+    ];
+
+    listIds.forEach((listId) => {
+        const list =
+            document.getElementById(listId);
+
+        if (!list || list.closest(".analytics-scroll-shell")) {
+            return;
+        }
+
+        const shell =
+            document.createElement("div");
+        const track =
+            document.createElement("div");
+        const thumb =
+            document.createElement("div");
+
+        shell.className = "analytics-scroll-shell";
+        track.className = "analytics-scroll-track";
+        thumb.className = "analytics-scroll-thumb";
+        track.setAttribute("aria-hidden", "true");
+
+        list.parentNode.insertBefore(shell, list);
+        shell.appendChild(list);
+        shell.appendChild(track);
+        track.appendChild(thumb);
+
+        const updateIndicator = () => {
+            const maxScroll =
+                list.scrollHeight - list.clientHeight;
+            const availableTravel =
+                Math.max(0, track.clientHeight - thumb.offsetHeight);
+            const progress = maxScroll > 0
+                ? list.scrollTop / maxScroll
+                : 0;
+
+            track.hidden = maxScroll <= 0;
+            thumb.style.transform =
+                `translateY(${progress * availableTravel}px)`;
+        };
+
+        list.addEventListener(
+            "scroll",
+            updateIndicator,
+            { passive: true }
+        );
+
+        new ResizeObserver(
+            updateIndicator
+        ).observe(list);
+
+        new MutationObserver(
+            updateIndicator
+        ).observe(
+            list,
+            {
+                childList: true,
+                subtree: true
+            }
+        );
+
+        window.requestAnimationFrame(
+            updateIndicator
+        );
+    });
+}
+
 function renderRecentAnchors(anchors) {
     const list =
         document.getElementById(
@@ -1551,6 +1624,7 @@ async function loadAnalytics() {
 
 initializeAnalyticsTabs();
 initializeAnalyticsMarketChart();
+initializeAnalyticsScrollIndicators();
 loadAnalytics();
 loadMarketAnalytics();
 
