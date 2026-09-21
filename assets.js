@@ -1,18 +1,12 @@
 const client = KeetaNet.Client.fromNetwork("main");
 
-const pageSize = 20;
 const assetDetailsCacheKey = "keetaview_asset_details";
 let assets = [];
 let filteredAssets = [];
-let currentPage = 1;
 
 const knownAssetsList = document.getElementById("knownAssetsList");
 const assetFilter = document.getElementById("assetFilter");
 const assetResultCount = document.getElementById("assetResultCount");
-const assetPagination = document.getElementById("assetPagination");
-const assetPrevious = document.getElementById("assetPrevious");
-const assetNext = document.getElementById("assetNext");
-const assetPageStatus = document.getElementById("assetPageStatus");
 
 function loadKnownAssets() {
     try {
@@ -145,14 +139,8 @@ function renderAssets() {
     knownAssetsList.innerHTML = "";
 
     const totalResults = filteredAssets.length;
-    const totalPages = Math.max(1, Math.ceil(totalResults / pageSize));
-
-    if (currentPage > totalPages) {
-        currentPage = totalPages;
-    }
-
     assetResultCount.textContent =
-        `${totalResults.toLocaleString()} ${totalResults === 1 ? "asset" : "assets"}`;
+        `All ${totalResults.toLocaleString()} ${totalResults === 1 ? "asset" : "assets"}`;
 
     if (totalResults === 0) {
         const empty = document.createElement("p");
@@ -161,21 +149,16 @@ function renderAssets() {
             ? "No assets match that filter."
             : "No known assets yet.";
         knownAssetsList.appendChild(empty);
-        assetPagination.hidden = true;
         return;
     }
 
-    const start = (currentPage - 1) * pageSize;
-    const pageAssets = filteredAssets.slice(start, start + pageSize);
+    const rows = document.createDocumentFragment();
 
-    pageAssets.forEach((asset) => {
-        knownAssetsList.appendChild(createAssetRow(asset));
+    filteredAssets.forEach((asset) => {
+        rows.appendChild(createAssetRow(asset));
     });
 
-    assetPageStatus.textContent = `Page ${currentPage} of ${totalPages}`;
-    assetPrevious.disabled = currentPage === 1;
-    assetNext.disabled = currentPage === totalPages;
-    assetPagination.hidden = totalPages <= 1;
+    knownAssetsList.appendChild(rows);
 }
 
 function filterAssets() {
@@ -188,7 +171,6 @@ function filterAssets() {
         )
         : [...assets];
 
-    currentPage = 1;
     renderAssets();
 }
 
@@ -196,7 +178,7 @@ async function loadIndexedAssets() {
     try {
         const response =
             await fetch(
-                "/api/assets?limit=1000",
+                "/api/assets?all=true",
                 {
                     headers: {
                         Accept: "application/json"
@@ -276,17 +258,18 @@ async function loadAsset(address) {
 
 async function loadAssetsPage() {
     const savedAssets =
-    loadKnownAssets();
+        loadKnownAssets();
 
-const indexedAssets =
-    await loadIndexedAssets();
+    const indexedAssets =
+        await loadIndexedAssets();
 
-const knownAssets = [
-    ...new Set([
-        ...savedAssets,
-        ...indexedAssets
-    ])
-];
+    const knownAssets = [
+        ...new Set(
+            indexedAssets.length
+                ? indexedAssets
+                : savedAssets
+        )
+    ];
 
     if (knownAssets.length === 0) {
         assets = [];
@@ -305,11 +288,11 @@ const knownAssets = [
     filteredAssets = [...assets];
     renderAssets();
 
-    const firstPageAssets = assets.slice(0, pageSize);
-    const remainingAssets = assets.slice(pageSize);
+    const initialAssets = assets.slice(0, 20);
+    const remainingAssets = assets.slice(20);
 
     await Promise.all(
-        firstPageAssets.map(async (asset) => {
+        initialAssets.map(async (asset) => {
             Object.assign(
                 asset,
                 await loadAsset(asset.address)
@@ -327,81 +310,53 @@ const knownAssets = [
     renderAssets();
     saveCachedAssetDetails();
 
-   (async () => {
-    const batchSize = 8;
+    (async () => {
+        const batchSize = 8;
 
-    for (
-        let start = 0;
-        start < remainingAssets.length;
-        start += batchSize
-    ) {
-        const batch =
-            remainingAssets.slice(
-                start,
-                start + batchSize
+        for (
+            let start = 0;
+            start < remainingAssets.length;
+            start += batchSize
+        ) {
+            const batch =
+                remainingAssets.slice(
+                    start,
+                    start + batchSize
+                );
+
+            await Promise.all(
+                batch.map(async (asset) => {
+                    Object.assign(
+                        asset,
+                        await loadAsset(
+                            asset.address
+                        )
+                    );
+                })
             );
 
-        await Promise.all(
-            batch.map(async (asset) => {
-                Object.assign(
-                    asset,
-                    await loadAsset(
-                        asset.address
-                    )
-                );
-            })
+            assets.sort((first, second) =>
+                first.symbol.localeCompare(
+                    second.symbol,
+                    undefined,
+                    {
+                        numeric: true,
+                        sensitivity: "base"
+                    }
+                )
+            );
+
+            filterAssets();
+            saveCachedAssetDetails();
+        }
+    })().catch((error) => {
+        console.warn(
+            "Some asset details could not be loaded:",
+            error
         );
-
-        assets.sort((first, second) =>
-            first.symbol.localeCompare(
-                second.symbol,
-                undefined,
-                {
-                    numeric: true,
-                    sensitivity: "base"
-                }
-            )
-        );
-
-        filteredAssets = [
-            ...assets
-        ];
-
-        renderAssets();
-        saveCachedAssetDetails();
-    }
-})().catch((error) => {
-    console.warn(
-        "Some asset details could not be loaded:",
-        error
-    );
-});
+    });
 }
 
 assetFilter.addEventListener("input", filterAssets);
-
-assetPrevious.addEventListener("click", () => {
-    if (currentPage > 1) {
-        currentPage -= 1;
-        renderAssets();
-        document.querySelector(".assets-list-card")?.scrollIntoView({
-            behavior: "smooth",
-            block: "start"
-        });
-    }
-});
-
-assetNext.addEventListener("click", () => {
-    const totalPages = Math.ceil(filteredAssets.length / pageSize);
-
-    if (currentPage < totalPages) {
-        currentPage += 1;
-        renderAssets();
-        document.querySelector(".assets-list-card")?.scrollIntoView({
-            behavior: "smooth",
-            block: "start"
-        });
-    }
-});
 
 loadAssetsPage();

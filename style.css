@@ -3274,10 +3274,12 @@ html[data-theme="clean"] .asset-page-shell .asset-overview-card {
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-gutter: stable;
+    scrollbar-color: #c3cbd5 transparent;
+    scrollbar-width: thin;
 }
 
 .analytics-ranked-list {
-    height: 416px;
+    height: 520px;
 }
 
 .analytics-ranked-list--tall {
@@ -3303,6 +3305,7 @@ html[data-theme="clean"] .asset-page-shell .asset-overview-card {
     background: #c3cbd5;
     border: 3px solid #ffffff;
     border-radius: 999px;
+    min-height: 48px;
 }
 
 .analytics-ranked-row {
