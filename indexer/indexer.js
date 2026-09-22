@@ -462,6 +462,12 @@ const countTransfers =
         FROM transfers
     `);
 
+const countBlocks =
+    database.prepare(`
+        SELECT COUNT(*) AS total
+        FROM blocks
+    `);
+
 console.log("KeetaView Indexer starting...");
 
 async function testConnection() {
@@ -1282,8 +1288,84 @@ if (watchMode) {
     const historicalBackfillEnabled =
         process.env.HISTORICAL_BACKFILL === "true";
 
+    const currentBlockTotal = () =>
+        Number(
+            countBlocks.get().total
+        );
+
+    const currentDatabaseBytes = () =>
+        getFileSize(databaseFile) +
+        getFileSize(`${databaseFile}-wal`) +
+        getFileSize(`${databaseFile}-shm`);
+
+    const existingBackfillState =
+        state.historicalBackfill || {};
+
+    state.historicalBackfill = {
+        enabled: historicalBackfillEnabled,
+        intervalMinutes:
+            backfillIntervalMinutes,
+        complete:
+            Boolean(
+                existingBackfillState.complete
+            ),
+        startedAt:
+            existingBackfillState.startedAt ||
+            (
+                historicalBackfillEnabled
+                    ? new Date().toISOString()
+                    : null
+            ),
+        lastAttemptAt:
+            existingBackfillState.lastAttemptAt || null,
+        lastSuccessAt:
+            existingBackfillState.lastSuccessAt || null,
+        lastFailureAt:
+            existingBackfillState.lastFailureAt || null,
+        lastError:
+            existingBackfillState.lastError || null,
+        batchesSucceeded:
+            Number(
+                existingBackfillState.batchesSucceeded
+            ) || 0,
+        batchesFailed:
+            Number(
+                existingBackfillState.batchesFailed
+            ) || 0,
+        blocksAdded:
+            Number(
+                existingBackfillState.blocksAdded
+            ) || 0,
+        bytesAdded:
+            Number(
+                existingBackfillState.bytesAdded
+            ) || 0,
+        lastBatchBlocks:
+            Number(
+                existingBackfillState.lastBatchBlocks
+            ) || 0,
+        lastBatchDurationMs:
+            Number(
+                existingBackfillState.lastBatchDurationMs
+            ) || 0,
+        baselineBlocks:
+            Number(
+                existingBackfillState.baselineBlocks
+            ) || currentBlockTotal(),
+        baselineDatabaseBytes:
+            Number(
+                existingBackfillState.baselineDatabaseBytes
+            ) || currentDatabaseBytes()
+    };
+
+    fs.writeFileSync(
+        stateFile,
+        JSON.stringify(state, null, 2)
+    );
+
     let historicalBackfillComplete =
-        !historicalBackfillEnabled;
+        !historicalBackfillEnabled ||
+        state.historicalBackfill.complete;
 
     let lastHistoricalBackfillAt = 0;
 
@@ -1340,6 +1422,15 @@ if (watchMode) {
             lastHistoricalBackfillAt =
                 Date.now();
 
+            const attemptStartedAt =
+                new Date();
+
+            const blocksBefore =
+                currentBlockTotal();
+
+            state.historicalBackfill.lastAttemptAt =
+                attemptStartedAt.toISOString();
+
             try {
                 console.log(
                     "Running one controlled historical backfill batch..."
@@ -1348,15 +1439,83 @@ if (watchMode) {
                 const historyFound =
                     await testHistoryFetch();
 
+                const blocksAfter =
+                    currentBlockTotal();
+
+                const bytesAfter =
+                    currentDatabaseBytes();
+
+                const blocksAdded =
+                    Math.max(
+                        0,
+                        blocksAfter - blocksBefore
+                    );
+
+                state.historicalBackfill.lastSuccessAt =
+                    new Date().toISOString();
+
+                state.historicalBackfill.lastError =
+                    null;
+
+                state.historicalBackfill.batchesSucceeded +=
+                    1;
+
+                state.historicalBackfill.lastBatchBlocks =
+                    blocksAdded;
+
+                state.historicalBackfill.lastBatchDurationMs =
+                    Date.now() - attemptStartedAt.getTime();
+
+                state.historicalBackfill.blocksAdded =
+                    Math.max(
+                        0,
+                        blocksAfter -
+                            state.historicalBackfill.baselineBlocks
+                    );
+
+                state.historicalBackfill.bytesAdded =
+                    Math.max(
+                        0,
+                        bytesAfter -
+                            state.historicalBackfill.baselineDatabaseBytes
+                    );
+
                 if (!historyFound) {
                     historicalBackfillComplete =
+                        true;
+
+                    state.historicalBackfill.complete =
                         true;
 
                     console.log(
                         "Historical backfill is complete."
                     );
                 }
+
+                fs.writeFileSync(
+                    stateFile,
+                    JSON.stringify(state, null, 2)
+                );
             } catch (error) {
+                state.historicalBackfill.lastFailureAt =
+                    new Date().toISOString();
+
+                state.historicalBackfill.lastError =
+                    error instanceof Error
+                        ? error.message
+                        : String(error);
+
+                state.historicalBackfill.batchesFailed +=
+                    1;
+
+                state.historicalBackfill.lastBatchDurationMs =
+                    Date.now() - attemptStartedAt.getTime();
+
+                fs.writeFileSync(
+                    stateFile,
+                    JSON.stringify(state, null, 2)
+                );
+
                 console.error(
                     "Historical backfill failed:",
                     error

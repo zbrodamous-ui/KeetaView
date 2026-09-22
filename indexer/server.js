@@ -17,6 +17,12 @@ const databaseFile =
         "keetascan.db"
     );
 
+const stateFile =
+    path.join(
+        dataDirectory,
+        "state.json"
+    );
+
 const projectRoot =
     fileURLToPath(
         new URL(
@@ -1490,6 +1496,64 @@ const server =
                     0
                 );
 
+                let historicalBackfill = null;
+
+                try {
+                    const indexerState =
+                        JSON.parse(
+                            fs.readFileSync(
+                                stateFile,
+                                "utf8"
+                            )
+                        );
+
+                    const savedBackfill =
+                        indexerState.historicalBackfill;
+
+                    if (savedBackfill) {
+                        const startedAt =
+                            Date.parse(
+                                savedBackfill.startedAt
+                            );
+
+                        const elapsedHours =
+                            Number.isFinite(startedAt)
+                                ? Math.max(
+                                    (Date.now() - startedAt) /
+                                        3_600_000,
+                                    0
+                                )
+                                : 0;
+
+                        const blocksAdded =
+                            Number(
+                                savedBackfill.blocksAdded
+                            ) || 0;
+
+                        const bytesAdded =
+                            Number(
+                                savedBackfill.bytesAdded
+                            ) || 0;
+
+                        historicalBackfill = {
+                            ...savedBackfill,
+                            blocksPerHour:
+                                elapsedHours > 0
+                                    ? blocksAdded / elapsedHours
+                                    : 0,
+                            storageBytesPerHour:
+                                elapsedHours > 0
+                                    ? bytesAdded / elapsedHours
+                                    : 0
+                        };
+                    }
+                } catch (error) {
+                    console.warn(
+                        "Could not read historical backfill status:",
+                        error
+                    );
+                }
+
                 sendJson(
                     response,
                     200,
@@ -1502,6 +1566,7 @@ const server =
                         assets,
                         anchors,
                         databaseBytes,
+                        historicalBackfill,
                         averageOperations:
                             Number(
                                 blockSummary
