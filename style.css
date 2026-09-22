@@ -4982,6 +4982,89 @@ html[data-theme="clean"] .addresses-list-card {
     color: #718096;
 }
 
+.status-backfill-card {
+    margin-top: 16px;
+}
+
+.status-backfill-state {
+    padding: 7px 11px;
+    border: 1px solid #d8dee6;
+    border-radius: 999px;
+    color: #5f6f82;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.status-backfill-state[data-state="running"],
+.status-backfill-state[data-state="complete"] {
+    border-color: rgba(26, 169, 104, 0.35);
+    color: #168957;
+    background: rgba(26, 169, 104, 0.09);
+}
+
+.status-backfill-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin: 0;
+}
+
+.status-backfill-grid > div {
+    min-width: 0;
+    padding: 18px 22px;
+    border-right: 1px solid #e2e6eb;
+    border-bottom: 1px solid #e2e6eb;
+}
+
+.status-backfill-grid > div:nth-child(4n) {
+    border-right: 0;
+}
+
+.status-backfill-grid dt {
+    margin-bottom: 7px;
+    color: #718096;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.status-backfill-grid dd {
+    margin: 0;
+    color: #26364b;
+    font-weight: 700;
+}
+
+.status-backfill-error {
+    margin: 0;
+    padding: 14px 22px;
+    color: #b42318;
+    background: rgba(180, 35, 24, 0.08);
+}
+
+@media (max-width: 900px) {
+    .status-backfill-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .status-backfill-grid > div:nth-child(4n) {
+        border-right: 1px solid #e2e6eb;
+    }
+
+    .status-backfill-grid > div:nth-child(2n) {
+        border-right: 0;
+    }
+}
+
+@media (max-width: 560px) {
+    .status-backfill-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .status-backfill-grid > div {
+        border-right: 0 !important;
+    }
+}
+
 .status-history-coverage-heading small {
     margin-top: 4px;
 }
@@ -6921,6 +7004,8 @@ html[data-theme="soft"] .status-card-header,
 html[data-theme="soft"] .status-message-card,
 html[data-theme="soft"] .service-health-list,
 html[data-theme="soft"] .status-history-coverage,
+html[data-theme="soft"] .status-backfill-grid,
+html[data-theme="soft"] .status-backfill-grid > div,
 html[data-theme="soft"] .status-coverage-list {
     background: #000000 !important;
     border-color: #2a2a2a !important;
@@ -6933,6 +7018,7 @@ html[data-theme="soft"] .status-metric-card strong,
 html[data-theme="soft"] .status-card-header h2,
 html[data-theme="soft"] .service-health-list strong,
 html[data-theme="soft"] .status-history-coverage-heading strong,
+html[data-theme="soft"] .status-backfill-grid dd,
 html[data-theme="soft"] .status-coverage-list dd,
 html[data-theme="soft"] .status-message-card strong {
     color: #ffffff !important;
@@ -6947,6 +7033,7 @@ html[data-theme="soft"] .status-card-header .home-eyebrow,
 html[data-theme="soft"] .service-health-list small,
 html[data-theme="soft"] .status-history-coverage-heading small,
 html[data-theme="soft"] .status-history-coverage-note,
+html[data-theme="soft"] .status-backfill-grid dt,
 html[data-theme="soft"] .status-coverage-list dt,
 html[data-theme="soft"] .status-message-card p {
     color: #b8b8b8 !important;
@@ -6962,6 +7049,10 @@ html[data-theme="soft"] .status-coverage-list > div {
 
 html[data-theme="soft"] .status-coverage-progress {
     background: #202020;
+}
+
+html[data-theme="soft"] .status-backfill-grid > div {
+    border-color: #2a2a2a !important;
 }
 
 /* Service state text */

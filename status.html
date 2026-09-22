@@ -258,6 +258,53 @@
         </article>
     </section>
 
+    <article class="status-dashboard-card status-backfill-card">
+        <header class="status-card-header">
+            <div>
+                <p class="home-eyebrow">HISTORICAL INDEXER</p>
+                <h2>Backfill Monitor</h2>
+            </div>
+            <span id="statusBackfillState" class="status-backfill-state">Waiting for data</span>
+        </header>
+
+        <dl class="status-backfill-grid">
+            <div>
+                <dt>Last Successful Batch</dt>
+                <dd id="statusBackfillLastSuccess">—</dd>
+            </div>
+            <div>
+                <dt>Latest Batch</dt>
+                <dd id="statusBackfillLastBatch">—</dd>
+            </div>
+            <div>
+                <dt>Indexing Speed</dt>
+                <dd id="statusBackfillSpeed">—</dd>
+            </div>
+            <div>
+                <dt>Estimated Remaining</dt>
+                <dd id="statusBackfillRemaining">—</dd>
+            </div>
+            <div>
+                <dt>Estimated Completion</dt>
+                <dd id="statusBackfillEta">—</dd>
+            </div>
+            <div>
+                <dt>Storage Growth</dt>
+                <dd id="statusBackfillStorage">—</dd>
+            </div>
+            <div>
+                <dt>Successful Batches</dt>
+                <dd id="statusBackfillSuccesses">—</dd>
+            </div>
+            <div>
+                <dt>Failed Batches</dt>
+                <dd id="statusBackfillFailures">—</dd>
+            </div>
+        </dl>
+
+        <p id="statusBackfillError" class="status-backfill-error" hidden></p>
+    </article>
+
     <article id="statusMessage" class="status-message-card">
         <strong>KeetaView index disclosure</strong>
         <p>

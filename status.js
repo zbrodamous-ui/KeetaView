@@ -53,6 +53,18 @@ const coverageDetail =
     document.getElementById("statusCoverageDetail");
 const coverageProgress =
     document.getElementById("statusCoverageProgress");
+const backfillFields = {
+    state: document.getElementById("statusBackfillState"),
+    lastSuccess: document.getElementById("statusBackfillLastSuccess"),
+    lastBatch: document.getElementById("statusBackfillLastBatch"),
+    speed: document.getElementById("statusBackfillSpeed"),
+    remaining: document.getElementById("statusBackfillRemaining"),
+    eta: document.getElementById("statusBackfillEta"),
+    storage: document.getElementById("statusBackfillStorage"),
+    successes: document.getElementById("statusBackfillSuccesses"),
+    failures: document.getElementById("statusBackfillFailures"),
+    error: document.getElementById("statusBackfillError")
+};
 
 let indexedBlockTotal = null;
 let liveNetworkHead = null;
@@ -147,6 +159,81 @@ function renderHistoricalCoverage() {
         `${percentage}%`;
 }
 
+function formatDuration(milliseconds) {
+    const value = Number(milliseconds);
+
+    if (!Number.isFinite(value) || value < 0) {
+        return "—";
+    }
+
+    if (value < 60_000) {
+        return `${(value / 1000).toFixed(1)} sec`;
+    }
+
+    return `${(value / 60_000).toFixed(1)} min`;
+}
+
+function renderBackfillMonitor(backfill) {
+    if (!backfill) {
+        backfillFields.state.textContent = "Telemetry unavailable";
+        return;
+    }
+
+    const enabled = Boolean(backfill.enabled);
+    const complete = Boolean(backfill.complete);
+    const blocksPerHour = Number(backfill.blocksPerHour) || 0;
+    const networkHead = Number(liveNetworkHead);
+    const indexedBlocks = Number(indexedBlockTotal);
+    const remainingBlocks =
+        Number.isFinite(networkHead) && Number.isFinite(indexedBlocks)
+            ? Math.max(0, networkHead - indexedBlocks)
+            : null;
+    const remainingHours =
+        remainingBlocks !== null && blocksPerHour > 0
+            ? remainingBlocks / blocksPerHour
+            : null;
+
+    backfillFields.state.textContent = complete
+        ? "Complete"
+        : enabled
+            ? `Running every ${formatNumber(backfill.intervalMinutes)} min`
+            : "Paused";
+    backfillFields.state.dataset.state = complete
+        ? "complete"
+        : enabled
+            ? "running"
+            : "paused";
+    backfillFields.lastSuccess.textContent = backfill.lastSuccessAt
+        ? timeAgo(backfill.lastSuccessAt)
+        : "No completed batch yet";
+    backfillFields.lastBatch.textContent = backfill.lastSuccessAt
+        ? `${formatNumber(backfill.lastBatchBlocks)} blocks in ${formatDuration(backfill.lastBatchDurationMs)}`
+        : "Waiting for first batch";
+    backfillFields.speed.textContent = blocksPerHour > 0
+        ? `${formatNumber(Math.round(blocksPerHour))} blocks/hour`
+        : "Calculating";
+    backfillFields.remaining.textContent = remainingBlocks === null
+        ? "Waiting for network head"
+        : `${formatNumber(remainingBlocks)} blocks`;
+    backfillFields.eta.textContent = remainingHours === null
+        ? "Calculating"
+        : formatKeetaDate(
+            new Date(
+                Date.now() + remainingHours * 3_600_000
+            )
+        );
+    backfillFields.storage.textContent =
+        `${formatStorage(backfill.bytesAdded)} total · ${formatStorage(backfill.storageBytesPerHour)}/hour`;
+    backfillFields.successes.textContent =
+        formatNumber(backfill.batchesSucceeded);
+    backfillFields.failures.textContent =
+        formatNumber(backfill.batchesFailed);
+    backfillFields.error.hidden = !backfill.lastError;
+    backfillFields.error.textContent = backfill.lastError
+        ? `Latest error: ${backfill.lastError}`
+        : "";
+}
+
 async function checkMarketFeed() {
     marketIndicator.classList.remove(
         "online",
@@ -232,6 +319,9 @@ async function checkKeetaNetwork() {
         fields.networkHead.textContent =
             formatNumber(networkHead);
         renderHistoricalCoverage();
+        renderBackfillMonitor(
+            window.keetaViewBackfillStatus
+        );
         networkEndpoint.textContent =
             `${blockCounts.length.toLocaleString()} responding ${blockCounts.length === 1 ? "node" : "nodes"}`;
 
@@ -312,6 +402,11 @@ function renderStatus(status, analytics) {
     fields.blocks.textContent =
         formatNumber(indexedBlockTotal);
     renderHistoricalCoverage();
+    window.keetaViewBackfillStatus =
+        status.historicalBackfill;
+    renderBackfillMonitor(
+        status.historicalBackfill
+    );
     fields.transfers.textContent =
         formatNumber(status.transfers ?? summary.transfers);
     fields.accounts.textContent =
