@@ -1419,9 +1419,6 @@ if (watchMode) {
             !historicalBackfillComplete &&
             historicalBackfillDue
         ) {
-            lastHistoricalBackfillAt =
-                Date.now();
-
             const attemptStartedAt =
                 new Date();
 
@@ -1519,6 +1516,13 @@ if (watchMode) {
                 console.error(
                     "Historical backfill failed:",
                     error
+                );
+            } finally {
+                lastHistoricalBackfillAt =
+                    Date.now();
+
+                console.log(
+                    `Next historical backfill batch will wait ${backfillIntervalMinutes} minutes.`
                 );
             }
         }
