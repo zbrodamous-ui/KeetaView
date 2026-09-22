@@ -191,6 +191,34 @@
                 </div>
             </header>
 
+            <div class="status-history-coverage">
+                <div class="status-history-coverage-heading">
+                    <div>
+                        <strong>Historical Coverage</strong>
+                        <small id="statusCoverageDetail">
+                            Waiting for indexed and network totals
+                        </small>
+                    </div>
+                    <strong id="statusCoveragePercent">—</strong>
+                </div>
+
+                <div
+                    id="statusCoverageProgress"
+                    class="status-coverage-progress"
+                    role="progressbar"
+                    aria-label="Approximate historical block coverage"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                    aria-valuenow="0"
+                >
+                    <span></span>
+                </div>
+
+                <small class="status-history-coverage-note">
+                    Approximate coverage based on locally stored blocks compared with the live network head.
+                </small>
+            </div>
+
             <dl class="status-coverage-list">
                 <div>
                     <dt>Live Network Head</dt>
@@ -198,7 +226,7 @@
                 </div>
 
                 <div>
-                    <dt>Index Freshness</dt>
+                    <dt>Latest Activity Age</dt>
                     <dd id="statusIndexFreshness">—</dd>
                 </div>
 

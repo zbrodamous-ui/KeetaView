@@ -4956,6 +4956,63 @@ html[data-theme="clean"] .addresses-list-card {
     box-shadow: 0 0 0 4px rgba(194, 150, 53, 0.11);
 }
 
+.status-history-coverage {
+    padding: 18px 22px;
+    border-bottom: 1px solid #e2e6eb;
+}
+
+.status-history-coverage-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.status-history-coverage-heading strong,
+.status-history-coverage-heading small {
+    display: block;
+}
+
+.status-history-coverage-heading > div > strong {
+    color: #26364b;
+}
+
+.status-history-coverage-heading small,
+.status-history-coverage-note {
+    color: #718096;
+}
+
+.status-history-coverage-heading small {
+    margin-top: 4px;
+}
+
+#statusCoveragePercent {
+    color: #26364b;
+    font-size: 1.1rem;
+}
+
+.status-coverage-progress {
+    height: 9px;
+    margin: 14px 0 10px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #e6ebf0;
+}
+
+.status-coverage-progress > span {
+    display: block;
+    width: 0;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #2589e8, #47b6ff);
+    transition: width 500ms ease;
+}
+
+.status-history-coverage-note {
+    display: block;
+    line-height: 1.45;
+}
+
 .status-coverage-list {
     margin: 0;
     padding: 4px 22px;
@@ -6863,6 +6920,7 @@ html[data-theme="soft"] .status-dashboard-card,
 html[data-theme="soft"] .status-card-header,
 html[data-theme="soft"] .status-message-card,
 html[data-theme="soft"] .service-health-list,
+html[data-theme="soft"] .status-history-coverage,
 html[data-theme="soft"] .status-coverage-list {
     background: #000000 !important;
     border-color: #2a2a2a !important;
@@ -6874,6 +6932,7 @@ html[data-theme="soft"] .status-title-card h1,
 html[data-theme="soft"] .status-metric-card strong,
 html[data-theme="soft"] .status-card-header h2,
 html[data-theme="soft"] .service-health-list strong,
+html[data-theme="soft"] .status-history-coverage-heading strong,
 html[data-theme="soft"] .status-coverage-list dd,
 html[data-theme="soft"] .status-message-card strong {
     color: #ffffff !important;
@@ -6886,6 +6945,8 @@ html[data-theme="soft"] .status-metric-card > span,
 html[data-theme="soft"] .status-metric-card small,
 html[data-theme="soft"] .status-card-header .home-eyebrow,
 html[data-theme="soft"] .service-health-list small,
+html[data-theme="soft"] .status-history-coverage-heading small,
+html[data-theme="soft"] .status-history-coverage-note,
 html[data-theme="soft"] .status-coverage-list dt,
 html[data-theme="soft"] .status-message-card p {
     color: #b8b8b8 !important;
@@ -6893,9 +6954,14 @@ html[data-theme="soft"] .status-message-card p {
 
 /* Service and database rows */
 html[data-theme="soft"] .service-health-list > div,
+html[data-theme="soft"] .status-history-coverage,
 html[data-theme="soft"] .status-coverage-list > div {
     background: #000000 !important;
     border-color: #2a2a2a !important;
+}
+
+html[data-theme="soft"] .status-coverage-progress {
+    background: #202020;
 }
 
 /* Service state text */

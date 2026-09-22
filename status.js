@@ -47,6 +47,15 @@ const marketIndicator =
     document.getElementById("marketIndicator");
 const marketState =
     document.getElementById("marketState");
+const coveragePercent =
+    document.getElementById("statusCoveragePercent");
+const coverageDetail =
+    document.getElementById("statusCoverageDetail");
+const coverageProgress =
+    document.getElementById("statusCoverageProgress");
+
+let indexedBlockTotal = null;
+let liveNetworkHead = null;
 
 function formatNumber(value) {
     const number = Number(value);
@@ -99,6 +108,43 @@ function setCheckingState() {
     systemStatus.querySelector("strong").textContent = "Checking API…";
     refreshStatusButton.disabled = true;
     refreshStatusButton.textContent = "Checking…";
+}
+
+function renderHistoricalCoverage() {
+    const indexedBlocks = Number(indexedBlockTotal);
+    const networkHead = Number(liveNetworkHead);
+
+    if (
+        !Number.isFinite(indexedBlocks) ||
+        !Number.isFinite(networkHead) ||
+        networkHead <= 0
+    ) {
+        coveragePercent.textContent = "—";
+        coverageDetail.textContent =
+            "Waiting for indexed and network totals";
+        coverageProgress.setAttribute("aria-valuenow", "0");
+        coverageProgress.querySelector("span").style.width = "0%";
+        return;
+    }
+
+    const percentage = Math.min(
+        100,
+        Math.max(0, (indexedBlocks / networkHead) * 100)
+    );
+    const displayedPercentage =
+        percentage >= 10
+            ? percentage.toFixed(1)
+            : percentage.toFixed(2);
+
+    coveragePercent.textContent = `${displayedPercentage}%`;
+    coverageDetail.textContent =
+        `${formatNumber(indexedBlocks)} of approximately ${formatNumber(networkHead)} blocks stored`;
+    coverageProgress.setAttribute(
+        "aria-valuenow",
+        percentage.toFixed(2)
+    );
+    coverageProgress.querySelector("span").style.width =
+        `${percentage}%`;
 }
 
 async function checkMarketFeed() {
@@ -181,8 +227,11 @@ async function checkKeetaNetwork() {
         const networkHead =
             Math.max(...blockCounts);
 
+        liveNetworkHead = networkHead;
+
         fields.networkHead.textContent =
             formatNumber(networkHead);
+        renderHistoricalCoverage();
         networkEndpoint.textContent =
             `${blockCounts.length.toLocaleString()} responding ${blockCounts.length === 1 ? "node" : "nodes"}`;
 
@@ -193,8 +242,10 @@ async function checkKeetaNetwork() {
             "Connected"
         );
     } catch (error) {
+        liveNetworkHead = null;
         fields.networkHead.textContent =
             "Not available";
+        renderHistoricalCoverage();
         networkEndpoint.textContent =
             "Live mainnet nodes";
 
@@ -257,8 +308,10 @@ function setOfflineState(error) {
 
 function renderStatus(status, analytics) {
     const summary = analytics.summary || {};
+    indexedBlockTotal = status.blocks ?? summary.blocks;
     fields.blocks.textContent =
-        formatNumber(status.blocks ?? summary.blocks);
+        formatNumber(indexedBlockTotal);
+    renderHistoricalCoverage();
     fields.transfers.textContent =
         formatNumber(status.transfers ?? summary.transfers);
     fields.accounts.textContent =
