@@ -23,6 +23,7 @@ const tokenInfoCache = new Map();
 let currentPage = 1;
 let totalOperations = 0;
 let loadedOperations = [];
+let filterTimer = null;
 
 if (
     new URLSearchParams(
@@ -272,37 +273,8 @@ function createOperationRow(operation) {
     return row;
 }
 
-function visibleOperations() {
-    const query =
-        transactionFilter.value
-            .trim()
-            .toLowerCase();
-
-    if (!query) {
-        return loadedOperations;
-    }
-
-    return loadedOperations.filter((operation) =>
-        [
-            operation.operation_type,
-            operation.block_hash,
-            operation.sender,
-            operation.recipient,
-            operation.token,
-            operation.tokenName,
-            operation.is_anchor
-                ? "anchor"
-                : ""
-        ].some((value) =>
-            String(value || "")
-                .toLowerCase()
-                .includes(query)
-        )
-    );
-}
-
 function renderCurrentPage() {
-    const operations = visibleOperations();
+    const operations = loadedOperations;
     const totalPages =
         Math.max(
             1,
@@ -316,9 +288,11 @@ function renderCurrentPage() {
         empty.className = "transactions-empty";
         empty.textContent =
             transactionFilter.value.trim()
-                ? "No operations on this page match that filter."
+                ? "No indexed operations match that exact search."
                 : transactionScope.value === "anchors"
                     ? "No indexed Anchor operations are available yet."
+                    : transactionScope.value === "transfers"
+                        ? "No indexed transfers are available yet."
                     : "No indexed operations are available.";
 
         transactionsPageList.appendChild(empty);
@@ -345,14 +319,14 @@ function renderCurrentPage() {
         );
 
     transactionResultCount.textContent =
-        transactionFilter.value.trim()
-            ? `${operations.length} matching on this page`
-            : `${firstResult.toLocaleString()}–${lastResult.toLocaleString()} of ${totalOperations.toLocaleString()}`;
+        `${firstResult.toLocaleString()}–${lastResult.toLocaleString()} of ${totalOperations.toLocaleString()}`;
 
     transactionsListTitle.textContent =
         transactionScope.value === "anchors"
             ? "Recorded Anchors"
-            : "Recorded Operations";
+            : transactionScope.value === "transfers"
+                ? "Recorded Transfers"
+                : "Recorded Operations";
 
     pageNumber.textContent =
         `Page ${currentPage} of ${totalPages}`;
@@ -434,22 +408,23 @@ async function loadOperationsPage() {
             operationParameters.set("anchors", "true");
         }
 
-        const [
-            operationsResponse,
-            statusResponse
-        ] = await Promise.all([
-            fetchKeetaView(
-                `/api/operations?${operationParameters}`
-            ),
-            fetchKeetaView(
-                "/api/status"
-            )
-        ]);
+        if (transactionScope.value === "transfers") {
+            operationParameters.set("transfers", "true");
+        }
 
-        if (
-            !operationsResponse.ok ||
-            !statusResponse.ok
-        ) {
+        const searchQuery =
+            transactionFilter.value.trim();
+
+        if (searchQuery) {
+            operationParameters.set("q", searchQuery);
+        }
+
+        const operationsResponse =
+            await fetchKeetaView(
+                `/api/operations?${operationParameters}`
+            );
+
+        if (!operationsResponse.ok) {
             throw new Error(
                 "Unable to load indexed operations"
             );
@@ -458,9 +433,6 @@ async function loadOperationsPage() {
         const operationPayload =
             await operationsResponse.json();
 
-        const status =
-            await statusResponse.json();
-
         const operations =
             Array.isArray(operationPayload)
                 ? operationPayload
@@ -468,7 +440,7 @@ async function loadOperationsPage() {
 
         totalOperations =
             Array.isArray(operationPayload)
-                ? Number(status.operations || 0)
+                ? operationPayload.length
                 : Number(operationPayload.total || 0);
 
         loadedOperations =
@@ -494,7 +466,16 @@ async function loadOperationsPage() {
 
 transactionFilter.addEventListener(
     "input",
-    renderCurrentPage
+    () => {
+        window.clearTimeout(filterTimer);
+        filterTimer = window.setTimeout(
+            () => {
+                currentPage = 1;
+                loadOperationsPage();
+            },
+            350
+        );
+    }
 );
 
 transactionScope.addEventListener(
@@ -535,7 +516,6 @@ previousPageButton.addEventListener(
     () => {
         if (currentPage > 1) {
             currentPage -= 1;
-            transactionFilter.value = "";
             loadOperationsPage();
 
             document
@@ -560,7 +540,6 @@ nextPageButton.addEventListener(
 
         if (currentPage < totalPages) {
             currentPage += 1;
-            transactionFilter.value = "";
             loadOperationsPage();
 
             document
