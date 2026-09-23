@@ -4322,6 +4322,10 @@ html[data-theme="clean"] .blocks-list-card {
     font-weight: 700;
 }
 
+.transaction-filter[hidden] {
+    display: none;
+}
+
 .transaction-filter input,
 .transaction-filter select {
     width: 100%;
