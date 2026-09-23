@@ -1526,6 +1526,10 @@ const server =
                         SELECT
                             COUNT(*) AS total,
                             COALESCE(
+                                SUM(operation_count),
+                                0
+                            ) AS operations,
+                            COALESCE(
                                 AVG(operation_count),
                                 0
                             ) AS average_operations,
@@ -1534,23 +1538,44 @@ const server =
                         FROM blocks
                     `).get();
 
+                let indexerState = null;
+
+                try {
+                    indexerState = JSON.parse(
+                        fs.readFileSync(
+                            stateFile,
+                            "utf8"
+                        )
+                    );
+                } catch (error) {
+                    console.warn(
+                        "Could not read indexer totals:",
+                        error
+                    );
+                }
+
                 const accounts =
-                    database.prepare(`
-                        SELECT COUNT(*) AS total
-                        FROM accounts
-                    `).get().total;
+                    Number.isFinite(
+                        Number(indexerState?.accountsFound)
+                    )
+                        ? Number(indexerState.accountsFound)
+                        : database.prepare(`
+                            SELECT COUNT(*) AS total
+                            FROM accounts
+                        `).get().total;
 
                 const transfers =
-                    database.prepare(`
-                        SELECT COUNT(*) AS total
-                        FROM transfers
-                    `).get().total;
+                    Number.isFinite(
+                        Number(indexerState?.transfersFound)
+                    )
+                        ? Number(indexerState.transfersFound)
+                        : database.prepare(`
+                            SELECT COUNT(*) AS total
+                            FROM transfers
+                        `).get().total;
 
                 const operations =
-                    database.prepare(`
-                        SELECT COUNT(*) AS total
-                        FROM operations
-                    `).get().total;
+                    Number(blockSummary.operations);
 
                 const assets =
                     database.prepare(`
@@ -1583,16 +1608,8 @@ const server =
                 let historicalBackfill = null;
 
                 try {
-                    const indexerState =
-                        JSON.parse(
-                            fs.readFileSync(
-                                stateFile,
-                                "utf8"
-                            )
-                        );
-
                     const savedBackfill =
-                        indexerState.historicalBackfill;
+                        indexerState?.historicalBackfill;
 
                     if (savedBackfill) {
                         const startedAt =
