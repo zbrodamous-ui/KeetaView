@@ -821,6 +821,8 @@ const server =
                         indexed_transfers.timestamp DESC,
                         indexed_transfers.id DESC
                     `
+                    : !anchorsOnly && conditions.length === 0
+                        ? "operations.timestamp DESC"
                     : `
                         operations.timestamp DESC,
                         operations.block_hash DESC,
