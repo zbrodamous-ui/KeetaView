@@ -724,8 +724,14 @@ const server =
                 const operationType =
                     url.searchParams.get("type");
 
+                const searchQuery =
+                    url.searchParams.get("q")?.trim() || "";
+
                 const anchorsOnly =
                     url.searchParams.get("anchors") === "true";
+
+                const transfersOnly =
+                    url.searchParams.get("transfers") === "true";
 
                 const conditions = [];
                 const parameters = [];
@@ -740,6 +746,25 @@ const server =
                 if (operationType) {
                     conditions.push("operations.operation_type = ?");
                     parameters.push(operationType);
+                }
+
+                if (searchQuery) {
+                    conditions.push(`
+                        (
+                            operations.block_hash = ?
+                            OR operations.sender = ?
+                            OR operations.recipient = ?
+                            OR operations.token = ?
+                            OR operations.operation_type = ? COLLATE NOCASE
+                        )
+                    `);
+                    parameters.push(
+                        searchQuery,
+                        searchQuery,
+                        searchQuery,
+                        searchQuery,
+                        searchQuery
+                    );
                 }
 
                 const whereClause =
@@ -763,6 +788,17 @@ const server =
                         `
                         : "";
 
+                const transferJoin =
+                    transfersOnly
+                        ? `
+                            INNER JOIN transfers AS indexed_transfers
+                                ON indexed_transfers.block_hash =
+                                    operations.block_hash
+                                AND indexed_transfers.operation_index =
+                                    operations.operation_index
+                        `
+                        : "";
+
                 const operations =
                     database.prepare(`
                         SELECT
@@ -781,6 +817,7 @@ const server =
                             ON anchors.block_hash = operations.block_hash
                             AND anchors.operation_index = operations.operation_index
                         ${anchorJoin}
+                        ${transferJoin}
                         ${whereClause}
                         ORDER BY operations.timestamp DESC,
                                  operations.block_hash DESC,
@@ -800,33 +837,24 @@ const server =
                     })
                 );
 
-                if (anchorsOnly) {
-                    const anchorTotal =
-                        database.prepare(`
-                            SELECT COUNT(*) AS total
-                            FROM operations
-                            ${anchorJoin}
-                            ${whereClause}
-                        `).get(...parameters).total;
-
-                    sendJson(
-                        response,
-                        200,
-                        {
-                            operations:
-                                operationsWithAnchorStatus,
-                            total:
-                                Number(anchorTotal || 0)
-                        }
-                    );
-
-                    return;
-                }
+                const operationTotal =
+                    database.prepare(`
+                        SELECT COUNT(*) AS total
+                        FROM operations
+                        ${anchorJoin}
+                        ${transferJoin}
+                        ${whereClause}
+                    `).get(...parameters).total;
 
                 sendJson(
                     response,
                     200,
-                    operationsWithAnchorStatus
+                    {
+                        operations:
+                            operationsWithAnchorStatus,
+                        total:
+                            Number(operationTotal || 0)
+                    }
                 );
 
                 return;

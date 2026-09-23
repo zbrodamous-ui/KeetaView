@@ -84,16 +84,17 @@
                 <span>Operation view</span>
                 <select id="transactionScope">
                     <option value="all">All Operations</option>
+                    <option value="transfers">Transfers</option>
                     <option value="anchors">Anchors</option>
                 </select>
             </label>
 
             <label class="transaction-filter">
-                <span>Filter operations on this page</span>
+                <span>Search the full index</span>
                 <input
                     id="transactionFilter"
                     type="search"
-                    placeholder="Type, block, address, or asset"
+                    placeholder="Full block hash, address, asset, or type"
                     autocomplete="off"
                 >
             </label>
