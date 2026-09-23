@@ -111,6 +111,12 @@ async function loadAddress() {
             </div>
         `;
 
+        attachKeetaCopyButton(
+            addressDetails.querySelector(".detail-value"),
+            address,
+            "address"
+        );
+
         balancesTitle.textContent = "Balances";
         balancesList.innerHTML = "";
 

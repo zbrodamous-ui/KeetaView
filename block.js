@@ -153,6 +153,23 @@ blockDetails.innerHTML = `
 }
 </div>
 `;
+
+const blockDetailValues =
+    blockDetails.querySelectorAll(".detail-value");
+
+attachKeetaCopyButton(
+    blockDetailValues[0],
+    block.hash.toString(),
+    "block hash"
+);
+
+if (block.previousHash) {
+    attachKeetaCopyButton(
+        blockDetails.querySelector('a[href^="block.html?hash="]'),
+        block.previousHash.toString(),
+        "previous block hash"
+    );
+}
     }
     catch (error) {
         console.error("Error loading block:", error);
