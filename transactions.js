@@ -12,6 +12,10 @@ const transactionFilter =
     document.getElementById("transactionFilter");
 const transactionScope =
     document.getElementById("transactionScope");
+const anchorStatusFilter =
+    document.getElementById("anchorStatusFilter");
+const anchorStatus =
+    document.getElementById("anchorStatus");
 const transactionResultCount =
     document.getElementById("transactionResultCount");
 const transactionsListTitle =
@@ -25,13 +29,22 @@ let totalOperations = 0;
 let loadedOperations = [];
 let filterTimer = null;
 
-if (
-    new URLSearchParams(
-        window.location.search
-    ).get("view") === "anchors"
-) {
+const initialParameters = new URLSearchParams(
+    window.location.search
+);
+
+if (initialParameters.get("view") === "anchors") {
     transactionScope.value = "anchors";
 }
+
+if (["verified", "unsigned", "invalid"].includes(
+    initialParameters.get("anchorStatus")
+)) {
+    anchorStatus.value = initialParameters.get("anchorStatus");
+}
+
+anchorStatusFilter.hidden =
+    transactionScope.value !== "anchors";
 
 function shortValue(value, start = 12, end = 6) {
     if (!value || value === "Not available") {
@@ -200,11 +213,26 @@ function createOperationRow(operation) {
         const anchorBadge =
             document.createElement("span");
 
+        const signatureStatus = String(
+            operation.anchor_signature_status || "detected"
+        ).toLowerCase();
+
+        const statusLabel = {
+            verified: "Verified Anchor",
+            unsigned: "Unsigned Anchor",
+            invalid: "Invalid Anchor",
+            encrypted: "Encrypted Anchor"
+        }[signatureStatus] || "Anchor";
+
         anchorBadge.className =
-            "transaction-anchor-badge";
-        anchorBadge.textContent = "Anchor";
+            `transaction-anchor-badge transaction-anchor-badge--${signatureStatus}`;
+        anchorBadge.textContent = statusLabel;
         anchorBadge.title =
-            "This operation contains a valid Anchor payload";
+            signatureStatus === "verified"
+                ? "This Anchor payload has a verified signature"
+                : signatureStatus === "unsigned"
+                    ? "This Anchor payload is valid but unsigned"
+                    : `Anchor verification status: ${signatureStatus}`;
 
         type.appendChild(anchorBadge);
     }
@@ -406,6 +434,13 @@ async function loadOperationsPage() {
 
         if (anchorsOnly) {
             operationParameters.set("anchors", "true");
+
+            if (anchorStatus.value !== "all") {
+                operationParameters.set(
+                    "anchorStatus",
+                    anchorStatus.value
+                );
+            }
         }
 
         if (transactionScope.value === "transfers") {
@@ -442,6 +477,22 @@ async function loadOperationsPage() {
             Array.isArray(operationPayload)
                 ? operationPayload.length
                 : Number(operationPayload.total || 0);
+
+        if (
+            anchorsOnly &&
+            !Array.isArray(operationPayload) &&
+            operationPayload.anchorCounts
+        ) {
+            const counts = operationPayload.anchorCounts;
+            anchorStatus.options[0].textContent =
+                `All Anchors (${Number(counts.total || 0).toLocaleString()})`;
+            anchorStatus.options[1].textContent =
+                `Verified (${Number(counts.verified || 0).toLocaleString()})`;
+            anchorStatus.options[2].textContent =
+                `Unsigned (${Number(counts.unsigned || 0).toLocaleString()})`;
+            anchorStatus.options[3].textContent =
+                `Invalid (${Number(counts.invalid || 0).toLocaleString()})`;
+        }
 
         loadedOperations =
             await Promise.all(
@@ -501,12 +552,41 @@ transactionScope.addEventListener(
             );
         }
 
+        anchorStatusFilter.hidden =
+            transactionScope.value !== "anchors";
+
+        if (transactionScope.value !== "anchors") {
+            anchorStatus.value = "all";
+            pageUrl.searchParams.delete("anchorStatus");
+        }
+
         window.history.replaceState(
             {},
             "",
             pageUrl
         );
 
+        loadOperationsPage();
+    }
+);
+
+anchorStatus.addEventListener(
+    "change",
+    () => {
+        currentPage = 1;
+
+        const pageUrl = new URL(window.location.href);
+
+        if (anchorStatus.value === "all") {
+            pageUrl.searchParams.delete("anchorStatus");
+        } else {
+            pageUrl.searchParams.set(
+                "anchorStatus",
+                anchorStatus.value
+            );
+        }
+
+        window.history.replaceState({}, "", pageUrl);
         loadOperationsPage();
     }
 );

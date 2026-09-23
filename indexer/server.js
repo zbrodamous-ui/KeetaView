@@ -730,6 +730,15 @@ const server =
                 const anchorsOnly =
                     url.searchParams.get("anchors") === "true";
 
+                const requestedAnchorStatus =
+                    url.searchParams.get("anchorStatus")?.toLowerCase();
+
+                const anchorStatus =
+                    ["verified", "unsigned", "invalid", "encrypted"]
+                        .includes(requestedAnchorStatus)
+                        ? requestedAnchorStatus
+                        : null;
+
                 const transfersOnly =
                     url.searchParams.get("transfers") === "true";
 
@@ -780,6 +789,9 @@ const server =
                                     block_hash AS anchor_block_hash,
                                     operation_index AS anchor_operation_index
                                 FROM anchors
+                                ${anchorStatus
+                                    ? "WHERE signature_status = ?"
+                                    : ""}
                             ) AS anchor_operations
                                 ON anchor_operations.anchor_block_hash =
                                     operations.block_hash
@@ -787,6 +799,11 @@ const server =
                                     operations.operation_index
                         `
                         : "";
+
+                const anchorParameters =
+                    anchorsOnly && anchorStatus
+                        ? [anchorStatus]
+                        : [];
 
                 const operationSource = transfersOnly
                     ? `
@@ -833,6 +850,7 @@ const server =
                         LIMIT ?
                         OFFSET ?
                     `).all(
+                        ...anchorParameters,
                         ...parameters,
                         limit,
                         offset
@@ -856,7 +874,21 @@ const server =
                             ${operationSource}
                             ${anchorJoin}
                             ${whereClause}
-                        `).get(...parameters).total;
+                        `).get(
+                            ...anchorParameters,
+                            ...parameters
+                        ).total;
+
+                const anchorCounts = anchorsOnly
+                    ? database.prepare(`
+                        SELECT
+                            COUNT(*) AS total,
+                            SUM(signature_status = 'verified') AS verified,
+                            SUM(signature_status = 'unsigned') AS unsigned,
+                            SUM(signature_status = 'invalid') AS invalid
+                        FROM anchors
+                    `).get()
+                    : null;
 
                 sendJson(
                     response,
@@ -865,7 +897,17 @@ const server =
                         operations:
                             operationsWithAnchorStatus,
                         total:
-                            Number(operationTotal || 0)
+                            Number(operationTotal || 0),
+                        ...(anchorCounts
+                            ? {
+                                anchorCounts: {
+                                    total: Number(anchorCounts.total || 0),
+                                    verified: Number(anchorCounts.verified || 0),
+                                    unsigned: Number(anchorCounts.unsigned || 0),
+                                    invalid: Number(anchorCounts.invalid || 0)
+                                }
+                            }
+                            : {})
                     }
                 );
 
