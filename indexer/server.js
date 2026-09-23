@@ -788,16 +788,27 @@ const server =
                         `
                         : "";
 
-                const transferJoin =
-                    transfersOnly
-                        ? `
-                            INNER JOIN transfers AS indexed_transfers
-                                ON indexed_transfers.block_hash =
-                                    operations.block_hash
-                                AND indexed_transfers.operation_index =
-                                    operations.operation_index
-                        `
-                        : "";
+                const operationSource = transfersOnly
+                    ? `
+                        FROM transfers AS indexed_transfers
+                        INNER JOIN operations
+                            ON operations.block_hash =
+                                indexed_transfers.block_hash
+                            AND operations.operation_index =
+                                indexed_transfers.operation_index
+                    `
+                    : "FROM operations";
+
+                const operationOrder = transfersOnly
+                    ? `
+                        indexed_transfers.timestamp DESC,
+                        indexed_transfers.id DESC
+                    `
+                    : `
+                        operations.timestamp DESC,
+                        operations.block_hash DESC,
+                        operations.operation_index ASC
+                    `;
 
                 const operations =
                     database.prepare(`
@@ -812,16 +823,13 @@ const server =
                             operations.timestamp,
                             operations.details_json,
                             anchors.signature_status AS anchor_signature_status
-                        FROM operations
+                        ${operationSource}
                         LEFT JOIN anchors
                             ON anchors.block_hash = operations.block_hash
                             AND anchors.operation_index = operations.operation_index
                         ${anchorJoin}
-                        ${transferJoin}
                         ${whereClause}
-                        ORDER BY operations.timestamp DESC,
-                                 operations.block_hash DESC,
-                                 operations.operation_index ASC
+                        ORDER BY ${operationOrder}
                         LIMIT ?
                         OFFSET ?
                     `).all(
@@ -838,13 +846,17 @@ const server =
                 );
 
                 const operationTotal =
-                    database.prepare(`
-                        SELECT COUNT(*) AS total
-                        FROM operations
-                        ${anchorJoin}
-                        ${transferJoin}
-                        ${whereClause}
-                    `).get(...parameters).total;
+                    transfersOnly && conditions.length === 0
+                        ? database.prepare(`
+                            SELECT COUNT(*) AS total
+                            FROM transfers
+                        `).get().total
+                        : database.prepare(`
+                            SELECT COUNT(*) AS total
+                            ${operationSource}
+                            ${anchorJoin}
+                            ${whereClause}
+                        `).get(...parameters).total;
 
                 sendJson(
                     response,
