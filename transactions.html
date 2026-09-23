@@ -105,12 +105,24 @@
 
             <label class="transaction-filter transaction-filter--search">
                 <span>Search the full index</span>
-                <input
-                    id="transactionFilter"
-                    type="search"
-                    placeholder="Full block hash, address, asset, or type"
-                    autocomplete="off"
-                >
+                <span class="transaction-search-control">
+                    <input
+                        id="transactionFilter"
+                        type="search"
+                        placeholder="Full block hash, address, asset, or type"
+                        autocomplete="off"
+                    >
+                    <button
+                        id="transactionFilterClear"
+                        class="transaction-search-clear"
+                        type="button"
+                        aria-label="Clear transaction search"
+                        title="Clear search"
+                        hidden
+                    >
+                        ×
+                    </button>
+                </span>
             </label>
         </div>
     </header>

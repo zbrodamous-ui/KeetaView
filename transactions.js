@@ -10,6 +10,8 @@ const pageNumber =
     document.getElementById("pageNumber");
 const transactionFilter =
     document.getElementById("transactionFilter");
+const transactionFilterClear =
+    document.getElementById("transactionFilterClear");
 const transactionScope =
     document.getElementById("transactionScope");
 const anchorStatusFilter =
@@ -33,9 +35,13 @@ const initialParameters = new URLSearchParams(
     window.location.search
 );
 
-if (initialParameters.get("view") === "anchors") {
-    transactionScope.value = "anchors";
+if (["transfers", "anchors"].includes(
+    initialParameters.get("view")
+)) {
+    transactionScope.value = initialParameters.get("view");
 }
+
+transactionFilter.value = initialParameters.get("q") || "";
 
 if (["verified", "unsigned", "invalid"].includes(
     initialParameters.get("anchorStatus")
@@ -45,6 +51,55 @@ if (["verified", "unsigned", "invalid"].includes(
 
 anchorStatusFilter.hidden =
     transactionScope.value !== "anchors";
+
+function updateSearchClearButton() {
+    transactionFilterClear.hidden =
+        !transactionFilter.value;
+}
+
+function updatePageUrl() {
+    const pageUrl = new URL(window.location.href);
+    const searchQuery = transactionFilter.value.trim();
+
+    if (transactionScope.value === "all") {
+        pageUrl.searchParams.delete("view");
+    } else {
+        pageUrl.searchParams.set(
+            "view",
+            transactionScope.value
+        );
+    }
+
+    if (
+        transactionScope.value === "anchors" &&
+        anchorStatus.value !== "all"
+    ) {
+        pageUrl.searchParams.set(
+            "anchorStatus",
+            anchorStatus.value
+        );
+    } else {
+        pageUrl.searchParams.delete("anchorStatus");
+    }
+
+    if (searchQuery) {
+        pageUrl.searchParams.set("q", searchQuery);
+    } else {
+        pageUrl.searchParams.delete("q");
+    }
+
+    window.history.replaceState({}, "", pageUrl);
+}
+
+function submitSearch() {
+    window.clearTimeout(filterTimer);
+    currentPage = 1;
+    updateSearchClearButton();
+    updatePageUrl();
+    loadOperationsPage();
+}
+
+updateSearchClearButton();
 
 function shortValue(value, start = 12, end = 6) {
     if (!value || value === "Not available") {
@@ -410,6 +465,8 @@ async function prepareOperation(operation) {
 }
 
 async function loadOperationsPage() {
+    transactionFilter.setAttribute("aria-busy", "true");
+    transactionFilterClear.disabled = true;
     transactionsPageList.innerHTML =
         '<p class="transactions-empty">Loading operations…</p>';
 
@@ -512,20 +569,40 @@ async function loadOperationsPage() {
         transactionResultCount.textContent =
             "Unavailable";
         pageNumber.textContent = "Page —";
+    } finally {
+        transactionFilter.removeAttribute("aria-busy");
+        transactionFilterClear.disabled = false;
     }
 }
 
 transactionFilter.addEventListener(
     "input",
     () => {
+        updateSearchClearButton();
         window.clearTimeout(filterTimer);
         filterTimer = window.setTimeout(
-            () => {
-                currentPage = 1;
-                loadOperationsPage();
-            },
+            submitSearch,
             350
         );
+    }
+);
+
+transactionFilter.addEventListener(
+    "keydown",
+    (event) => {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            submitSearch();
+        }
+    }
+);
+
+transactionFilterClear.addEventListener(
+    "click",
+    () => {
+        transactionFilter.value = "";
+        submitSearch();
+        transactionFilter.focus();
     }
 );
 
@@ -533,39 +610,15 @@ transactionScope.addEventListener(
     "change",
     () => {
         currentPage = 1;
-        transactionFilter.value = "";
-
-        const pageUrl =
-            new URL(window.location.href);
-
-        if (
-            transactionScope.value ===
-            "anchors"
-        ) {
-            pageUrl.searchParams.set(
-                "view",
-                "anchors"
-            );
-        } else {
-            pageUrl.searchParams.delete(
-                "view"
-            );
-        }
 
         anchorStatusFilter.hidden =
             transactionScope.value !== "anchors";
 
         if (transactionScope.value !== "anchors") {
             anchorStatus.value = "all";
-            pageUrl.searchParams.delete("anchorStatus");
         }
 
-        window.history.replaceState(
-            {},
-            "",
-            pageUrl
-        );
-
+        updatePageUrl();
         loadOperationsPage();
     }
 );
@@ -574,19 +627,7 @@ anchorStatus.addEventListener(
     "change",
     () => {
         currentPage = 1;
-
-        const pageUrl = new URL(window.location.href);
-
-        if (anchorStatus.value === "all") {
-            pageUrl.searchParams.delete("anchorStatus");
-        } else {
-            pageUrl.searchParams.set(
-                "anchorStatus",
-                anchorStatus.value
-            );
-        }
-
-        window.history.replaceState({}, "", pageUrl);
+        updatePageUrl();
         loadOperationsPage();
     }
 );

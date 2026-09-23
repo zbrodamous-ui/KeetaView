@@ -4349,6 +4349,49 @@ html[data-theme="clean"] .blocks-list-card {
     color: #8994a3;
 }
 
+.transaction-search-control {
+    position: relative;
+    display: block;
+}
+
+.transaction-search-control input {
+    padding-right: 44px;
+}
+
+.transaction-search-clear {
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #66768a;
+    font: inherit;
+    font-size: 1.3rem;
+    line-height: 1;
+    cursor: pointer;
+    transform: translateY(-50%);
+}
+
+.transaction-search-clear:hover,
+.transaction-search-clear:focus-visible {
+    background: rgba(90, 90, 90, 0.12);
+    color: #1b2433;
+    outline: none;
+}
+
+.transaction-search-clear[hidden] {
+    display: none;
+}
+
+.transaction-search-clear:disabled {
+    cursor: wait;
+    opacity: 0.45;
+}
+
 .transactions-list-card {
     overflow: hidden;
 }
