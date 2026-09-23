@@ -58,6 +58,12 @@ async function loadAsset() {
     ).textContent =
         assetAddress;
 
+    attachKeetaCopyButton(
+        document.getElementById("assetAddress"),
+        assetAddress,
+        "asset address"
+    );
+
     try {
         const assetInfo =
             await withKeetaViewTimeout(
