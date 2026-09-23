@@ -362,6 +362,32 @@ function setOnlineState() {
 }
 
 function setOfflineState(error) {
+    if (error?.code === "timeout") {
+        systemStatus.dataset.state = "checking";
+        systemStatus.querySelector("strong").textContent =
+            "KeetaView API response delayed";
+
+        for (const [indicator, label] of [
+            [apiIndicator, apiState],
+            [databaseIndicator, databaseState]
+        ]) {
+            indicator.classList.remove("online", "offline");
+            indicator.classList.add("pending");
+            label.textContent = "Timed out";
+        }
+
+        statusMessage.classList.add("error");
+        statusMessage.innerHTML = `
+            <strong>The status request took too long</strong>
+            <p>
+                KeetaView may still be online. Press Refresh to try the health check again.
+            </p>
+        `;
+
+        console.warn("Status check timed out:", error);
+        return;
+    }
+
     systemStatus.dataset.state = "offline";
     systemStatus.querySelector("strong").textContent = "KeetaView API offline";
     setServiceState(apiIndicator, apiState, false, "Offline");
