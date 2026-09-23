@@ -254,6 +254,11 @@ async function loadTransaction() {
             `${formatKeetaIdentifier(
                 blockHash
             )}:${operationIndex}`;
+        attachKeetaCopyButton(
+            transactionHash,
+            `${blockHash}:${operationIndex}`,
+            "operation ID"
+        );
 
         operationType.textContent =
             String(
@@ -278,6 +283,12 @@ async function loadTransaction() {
                 )}</a>`
                 : "Not available";
 
+        attachKeetaCopyButton(
+            from,
+            sender,
+            "sender address"
+        );
+
         to.innerHTML =
             recipient !== "Not available"
                 ? `<a href="address.html?address=${encodeURIComponent(
@@ -286,6 +297,12 @@ async function loadTransaction() {
                     recipient
                 )}</a>`
                 : "Not available";
+
+        attachKeetaCopyButton(
+            to,
+            recipient,
+            "recipient address"
+        );
 
         amount.textContent =
             `${readableAmount} ${tokenName}`
@@ -299,6 +316,11 @@ async function loadTransaction() {
             )}">${formatKeetaIdentifier(
                 blockHash
             )}</a>`;
+        attachKeetaCopyButton(
+            blockElement,
+            blockHash,
+            "block hash"
+        );
 
 const anchor = transaction.anchor;
 const verification = transaction.anchor_verification;
@@ -364,6 +386,11 @@ function renderAnchorSigner() {
         formatKeetaIdentifier(verification.signer);
     signerLink.title = verification.signer;
     anchorSigner.append(signerLink);
+    attachKeetaCopyButton(
+        anchorSigner,
+        verification.signer,
+        "Anchor signer address"
+    );
 }
 
 if (verification?.status === "encrypted") {
@@ -422,6 +449,11 @@ if (
     anchorAddress.replaceChildren(
         addressLink
     );
+    attachKeetaCopyButton(
+        anchorAddress,
+        addressValue,
+        "Anchor account address"
+    );
 
     try {
         const anchorAccount =
@@ -448,11 +480,19 @@ if (
             "Unavailable";
     }
 
-    anchorIdentifier.textContent =
+    const anchorTransactionIdentifier =
         anchorMetadata?.t ||
         anchorMetadata?.p ||
         anchorMetadata?.d ||
         "Not available";
+
+    anchorIdentifier.textContent =
+        anchorTransactionIdentifier;
+    attachKeetaCopyButton(
+        anchorIdentifier,
+        anchorTransactionIdentifier,
+        "Anchor transaction ID"
+    );
 
     const anchorHasBinding =
         typeof anchor?.b?.p === "string" &&
