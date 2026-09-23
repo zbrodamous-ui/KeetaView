@@ -114,36 +114,60 @@
             <span class="detail-label">Block</span>
             <span id="block">—</span>
         </div>
-        <div id="anchorDetails" hidden>
-    <div class="detail-row">
-        <span class="detail-label">Anchor Payload</span>
-        <span id="anchorVerification">Checking…</span>
-    </div>
+    </section>
 
-    <div class="detail-row">
-        <span class="detail-label">Anchor ID</span>
-        <span id="anchorAddress">—</span>
-    </div>
+    <section id="anchorDetails" class="anchor-detail-card" hidden>
+        <div class="anchor-detail-heading">
+            <div>
+                <span class="anchor-detail-eyebrow">Keeta Anchor</span>
+                <h2>Anchor Record</h2>
+            </div>
+            <span id="anchorVerification" class="anchor-verification">
+                Checking…
+            </span>
+        </div>
 
-        <div class="detail-row">
-        <span class="detail-label">Anchor Name</span>
-        <span id="anchorName">Checking…</span>
-    </div>
-    <div class="detail-row">
-        <span class="detail-label">Anchor Transaction ID</span>
-        <span id="anchorIdentifier">—</span>
-    </div>
+        <p id="anchorVerificationSummary" class="anchor-verification-summary">
+            Inspecting the Anchor payload and signature.
+        </p>
 
-    <div class="detail-row">
-        <span class="detail-label">Replay Protection Binding</span>
-        <a id="anchorReference" href="#">—</a>
-    </div>
+        <div class="anchor-detail-grid">
+            <div class="detail-row">
+                <span class="detail-label">Payload State</span>
+                <span id="anchorPayloadState">—</span>
+            </div>
 
-    <div class="detail-row">
-        <span class="detail-label">Payload Version</span>
-        <span id="anchorVersion">—</span>
-    </div>
-</div>
+            <div class="detail-row">
+                <span class="detail-label">Signer</span>
+                <span id="anchorSigner">—</span>
+            </div>
+
+            <div class="detail-row anchor-decoded-field">
+                <span class="detail-label">Anchor Account</span>
+                <span id="anchorAddress">—</span>
+            </div>
+
+            <div class="detail-row anchor-decoded-field">
+                <span class="detail-label">Anchor Name</span>
+                <span id="anchorName">Checking…</span>
+            </div>
+
+            <div class="detail-row anchor-decoded-field">
+                <span class="detail-label">Anchor Transaction ID</span>
+                <span id="anchorIdentifier">—</span>
+            </div>
+
+            <div class="detail-row anchor-decoded-field">
+                <span class="detail-label">Referenced Transaction</span>
+                <a id="anchorReference">—</a>
+            </div>
+
+            <div class="detail-row anchor-decoded-field">
+                <span class="detail-label">Payload Version</span>
+                <span id="anchorVersion">—</span>
+            </div>
+        </div>
+
         <div id="anchorBacklinks" hidden>
             <div class="detail-row">
                 <span class="detail-label">
@@ -159,6 +183,12 @@
                 <div id="anchorReferenceList"></div>
             </div>
         </div>
+
+        <p class="anchor-proof-note">
+            Signature verification confirms who signed this payload and that
+            it was not altered. It does not independently prove that every
+            statement inside the payload is true.
+        </p>
     </section>
 </main>
 
