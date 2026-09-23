@@ -2589,6 +2589,71 @@ html[data-theme="clean"] .home-search button:hover {
     color: var(--link-color);
 }
 
+.anchor-detail-card {
+    margin-top: 24px;
+    overflow: hidden;
+    background: var(--surface-background);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+}
+
+.anchor-detail-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 24px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.anchor-detail-heading h2 {
+    margin: 4px 0 0;
+    color: var(--primary-text);
+}
+
+.anchor-detail-eyebrow {
+    color: var(--secondary-text);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.anchor-detail-card .anchor-verification {
+    padding: 7px 11px;
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    white-space: nowrap;
+}
+
+.anchor-verification-summary,
+.anchor-proof-note {
+    margin: 0;
+    padding: 18px 24px;
+    color: var(--secondary-text);
+    line-height: 1.6;
+}
+
+.anchor-verification-summary {
+    border-bottom: 1px solid var(--border-color);
+}
+
+.anchor-proof-note {
+    border-top: 1px solid var(--border-color);
+    font-size: 0.82rem;
+}
+
+.anchor-detail-grid .detail-row,
+.anchor-detail-card > [id^="anchor"] .detail-row {
+    margin: 0;
+}
+
+.anchor-detail-card .detail-row > :last-child {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
 html[data-theme="clean"] .transaction-detail-shell .transaction-card {
     border-color: #d5d9de;
     box-shadow: 0 8px 24px rgba(32, 45, 62, 0.06);
@@ -2608,6 +2673,11 @@ html[data-theme="clean"] .transaction-detail-shell .transaction-card {
 
     .transaction-detail-shell .detail-row > span:last-child {
         text-align: left;
+    }
+
+    .anchor-detail-heading {
+        align-items: flex-start;
+        flex-direction: column;
     }
 }
 

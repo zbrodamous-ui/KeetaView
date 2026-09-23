@@ -142,6 +142,15 @@ async function loadTransaction() {
     const anchorVerification = document.getElementById(
         "anchorVerification"
     );
+    const anchorVerificationSummary = document.getElementById(
+        "anchorVerificationSummary"
+    );
+    const anchorPayloadState = document.getElementById(
+        "anchorPayloadState"
+    );
+    const anchorSigner = document.getElementById(
+        "anchorSigner"
+    );
 
             const anchorBacklinks =
         document.getElementById(
@@ -298,23 +307,81 @@ const anchorEntry =
         anchor?.a || {}
     )[0];
 
+const verificationDetails = {
+    verified: {
+        label: "Verified",
+        summary:
+            "The payload signature is valid and matches the displayed signer.",
+        payloadState: "Decoded and signature verified"
+    },
+    unsigned: {
+        label: "Unsigned",
+        summary:
+            "The Anchor payload is valid, but it does not contain a signature.",
+        payloadState: "Decoded without a signature"
+    },
+    invalid: {
+        label: "Invalid",
+        summary:
+            "The payload or its signature could not be validated. Treat its contents as untrusted.",
+        payloadState: "Decoded with validation errors"
+    },
+    encrypted: {
+        label: "Encrypted",
+        summary:
+            "The payload is encrypted. Its contents and signature cannot be inspected without an authorized key.",
+        payloadState: "Encrypted and not decoded"
+    }
+};
+
+const verificationStatus =
+    verification?.status || "unknown";
+const verificationDetail =
+    verificationDetails[verificationStatus] || {
+        label: "Detected",
+        summary:
+            "An Anchor payload was detected, but its verification state is unavailable.",
+        payloadState: "Detected"
+    };
+
+function renderAnchorSigner() {
+    anchorSigner.replaceChildren();
+
+    if (!verification?.signer) {
+        anchorSigner.textContent =
+            verificationStatus === "unsigned"
+                ? "No signer (unsigned payload)"
+                : "Not available";
+        return;
+    }
+
+    const signerLink = document.createElement("a");
+    signerLink.href =
+        `address.html?address=${encodeURIComponent(
+            verification.signer
+        )}`;
+    signerLink.textContent =
+        formatKeetaIdentifier(verification.signer);
+    signerLink.title = verification.signer;
+    anchorSigner.append(signerLink);
+}
+
 if (verification?.status === "encrypted") {
     anchorVerification.textContent =
-        "Encrypted payload";
+        verificationDetail.label;
     anchorVerification.className =
         "anchor-verification anchor-verification-encrypted";
-    anchorVerification.title =
-        "The payload contents and signature cannot be decoded or verified without an authorized key.";
+    anchorVerificationSummary.textContent =
+        verificationDetail.summary;
+    anchorPayloadState.textContent =
+        verificationDetail.payloadState;
+    renderAnchorSigner();
 
-    [
-        anchorAddress,
-        anchorName,
-        anchorIdentifier,
-        anchorReference,
-        anchorVersion
-    ].forEach((element) => {
-        element.closest(".detail-row").hidden = true;
-    });
+    document
+        .querySelectorAll(".anchor-decoded-field")
+        .forEach((element) => {
+            element.hidden = true;
+        });
 
     anchorDetails.hidden = false;
 }
@@ -323,20 +390,17 @@ if (
     anchor &&
     anchorEntry
 ) {
-    const verificationLabels = {
-        verified: "Verified signature",
-        unsigned: "Valid unsigned payload",
-        invalid: "Invalid signature or payload"
-    };
     anchorVerification.textContent =
-        verificationLabels[verification?.status] || "Detected";
+        verificationDetail.label;
     anchorVerification.className =
         `anchor-verification anchor-verification-${verification?.status || "unknown"}`;
-    if (verification?.signer) {
-        anchorVerification.title = `Signer: ${verification.signer}`;
-    } else if (verification?.error) {
-        anchorVerification.title = verification.error;
-    }
+    anchorVerificationSummary.textContent =
+        verification?.error && verificationStatus === "invalid"
+            ? `${verificationDetail.summary} ${verification.error}`
+            : verificationDetail.summary;
+    anchorPayloadState.textContent =
+        verificationDetail.payloadState;
+    renderAnchorSigner();
 
     const [
         addressValue,
