@@ -174,6 +174,17 @@ function formatDuration(milliseconds) {
 }
 
 function renderBackfillMonitor(backfill) {
+    if (
+        Object.values(backfillFields).some(
+            (element) => !element
+        )
+    ) {
+        console.warn(
+            "Backfill telemetry elements are not available on this page."
+        );
+        return;
+    }
+
     if (!backfill) {
         backfillFields.state.textContent = "Telemetry unavailable";
         return;
@@ -477,8 +488,22 @@ async function loadStatus() {
         const status = await statusResponse.json();
 
         // Confirm the API immediately using the lightweight status response.
-        renderStatus(status, { summary: status });
         setOnlineState();
+
+        try {
+            renderStatus(status, { summary: status });
+        } catch (renderError) {
+            console.error(
+                "Status data could not be fully rendered:",
+                renderError
+            );
+
+            statusMessage.classList.add("error");
+            statusMessage.innerHTML = `
+                <strong>KeetaView is online, but some status details could not be displayed</strong>
+                <p>Refresh the page to try loading the dashboard details again.</p>
+            `;
+        }
 
         await Promise.all([
             checkKeetaNetwork(),
