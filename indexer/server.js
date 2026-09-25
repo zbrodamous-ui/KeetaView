@@ -1307,23 +1307,34 @@ const server =
                         FROM blocks
                     `).get();
 
+                const savedIndexerState =
+                    readIndexerState();
+
+                const savedAccountTotal = Number(
+                    savedIndexerState?.accountsFound
+                );
+                const savedTransferTotal = Number(
+                    savedIndexerState?.transfersFound
+                );
+
                 const accountTotal =
-                    database.prepare(`
-                        SELECT COUNT(*) AS total
-                        FROM accounts
-                    `).get().total;
+                    Number.isFinite(savedAccountTotal)
+                        ? savedAccountTotal
+                        : database.prepare(`
+                            SELECT COUNT(*) AS total
+                            FROM accounts
+                        `).get().total;
 
                 const transferTotal =
-                    database.prepare(`
-                        SELECT COUNT(*) AS total
-                        FROM transfers
-                    `).get().total;
+                    Number.isFinite(savedTransferTotal)
+                        ? savedTransferTotal
+                        : database.prepare(`
+                            SELECT COUNT(*) AS total
+                            FROM transfers
+                        `).get().total;
 
                 const operationTotal =
-                    database.prepare(`
-                        SELECT COUNT(*) AS total
-                        FROM operations
-                    `).get().total;
+                    Number(blockSummary.operations);
 
                 const topSenders =
                     database.prepare(`
@@ -1371,8 +1382,15 @@ const server =
                             token,
                             COUNT(*) AS transfers
                         FROM transfers
-                            INDEXED BY transfers_by_token
+                            INDEXED BY transfers_by_timestamp
                         WHERE token IS NOT NULL
+                            AND timestamp >= (
+                                SELECT datetime(
+                                    MAX(timestamp),
+                                    '-24 hours'
+                                )
+                                FROM transfers
+                            )
                         GROUP BY token
                         ORDER BY transfers DESC
                     `).all();
@@ -1383,6 +1401,7 @@ const server =
                             substr(timestamp, 1, 10) AS day,
                             COUNT(*) AS transfers
                         FROM transfers
+                            INDEXED BY transfers_by_timestamp
                         WHERE timestamp >= (
                             SELECT date(
                                 MAX(timestamp),
