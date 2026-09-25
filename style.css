@@ -3456,6 +3456,19 @@ html[data-theme="clean"] .asset-page-shell .asset-overview-card {
     white-space: nowrap;
 }
 
+.analytics-ranked-row .analytics-asset-total {
+    display: flex;
+    align-items: flex-end;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.analytics-asset-total small {
+    color: #7a8797;
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
 .analytics-transfer-row {
     display: grid;
     grid-template-columns: 36px minmax(0, 1fr) auto;
@@ -3729,6 +3742,10 @@ html[data-theme="clean"] .analytics-dashboard-card {
 
     .analytics-ranked-row strong {
         grid-column: 2;
+    }
+
+    .analytics-ranked-row .analytics-asset-total {
+        align-items: flex-start;
     }
 
     .analytics-transfer-row {

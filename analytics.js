@@ -337,10 +337,19 @@ function renderTokenActivity(entries) {
         const total =
             document.createElement("strong");
 
-        total.textContent =
-            `${Number(
+        total.className =
+            "analytics-asset-total";
+
+        total.innerHTML = `
+            <span class="analytics-asset-amount">
+                ${entry.total_amount} moved
+            </span>
+            <small>
+                ${Number(
                 entry.transfers
-            ).toLocaleString()} transfers`;
+                ).toLocaleString()} transfers
+            </small>
+        `;
 
         row.appendChild(total);
         list.appendChild(row);
@@ -348,6 +357,30 @@ function renderTokenActivity(entries) {
         getAnalyticsToken(entry.token)
             .then((token) => {
                 link.textContent = token.name;
+
+                const amountElement =
+                    total.querySelector(
+                        ".analytics-asset-amount"
+                    );
+
+                let amount =
+                    entry.total_amount;
+
+                try {
+                    amount =
+                        formatTokenAmount(
+                            entry.total_amount,
+                            token.decimals
+                        );
+                } catch (error) {
+                    console.warn(
+                        "Unable to format asset movement total:",
+                        error
+                    );
+                }
+
+                amountElement.textContent =
+                    `${amount} ${token.name}`;
             });
     });
 }
