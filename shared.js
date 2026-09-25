@@ -3212,13 +3212,14 @@ function formatKeetaDate(value) {
         options.month = "numeric";
         options.year = "numeric";
     } else {
-        options.dateStyle = "short";
-        delete options.hour;
-        delete options.minute;
-        delete options.second;
-        delete options.hour12;
+        const dateOptions = {
+            dateStyle: "short",
+            ...(timeZone === "utc"
+                ? { timeZone: "UTC" }
+                : {})
+        };
 
-        return `${date.toLocaleDateString(undefined, options)} ${date.toLocaleTimeString(undefined, {
+        return `${date.toLocaleDateString(undefined, dateOptions)} ${date.toLocaleTimeString(undefined, {
             hour: "numeric",
             minute: "2-digit",
             second: "2-digit",
