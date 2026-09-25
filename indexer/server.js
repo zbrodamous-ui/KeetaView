@@ -23,6 +23,17 @@ const stateFile =
         "state.json"
     );
 
+function readIndexerState() {
+    try {
+        return JSON.parse(
+            fs.readFileSync(stateFile, "utf8")
+        );
+    } catch (error) {
+        console.warn("Could not read indexer state:", error);
+        return null;
+    }
+}
+
 const projectRoot =
     fileURLToPath(
         new URL(
@@ -865,21 +876,40 @@ const server =
                     })
                 );
 
-                const operationTotal =
-                    transfersOnly && conditions.length === 0
-                        ? database.prepare(`
-                            SELECT COUNT(*) AS total
-                            FROM transfers
-                        `).get().total
-                        : database.prepare(`
-                            SELECT COUNT(*) AS total
-                            ${operationSource}
-                            ${anchorJoin}
-                            ${whereClause}
-                        `).get(
-                            ...anchorParameters,
-                            ...parameters
-                        ).total;
+                let operationTotal;
+
+                if (!anchorsOnly && conditions.length === 0) {
+                    if (transfersOnly) {
+                        const savedTransfers = Number(
+                            readIndexerState()?.transfersFound
+                        );
+
+                        operationTotal = Number.isFinite(savedTransfers)
+                            ? savedTransfers
+                            : database.prepare(`
+                                SELECT COUNT(*) AS total
+                                FROM transfers
+                            `).get().total;
+                    } else {
+                        operationTotal = database.prepare(`
+                            SELECT COALESCE(
+                                SUM(operation_count),
+                                0
+                            ) AS total
+                            FROM blocks
+                        `).get().total;
+                    }
+                } else {
+                    operationTotal = database.prepare(`
+                        SELECT COUNT(*) AS total
+                        ${operationSource}
+                        ${anchorJoin}
+                        ${whereClause}
+                    `).get(
+                        ...anchorParameters,
+                        ...parameters
+                    ).total;
+                }
 
                 const anchorCounts = anchorsOnly
                     ? database.prepare(`
@@ -1036,11 +1066,8 @@ const server =
                         : 1000;
 
                 const assetQuery = `
-            SELECT DISTINCT
-                token AS address
-            FROM transfers
-            WHERE token IS NOT NULL
-              AND token <> ''
+            SELECT token AS address
+            FROM assets
             ORDER BY token
             ${includeAll ? "" : "LIMIT ?"}
         `;
@@ -1538,21 +1565,8 @@ const server =
                         FROM blocks
                     `).get();
 
-                let indexerState = null;
-
-                try {
-                    indexerState = JSON.parse(
-                        fs.readFileSync(
-                            stateFile,
-                            "utf8"
-                        )
-                    );
-                } catch (error) {
-                    console.warn(
-                        "Could not read indexer totals:",
-                        error
-                    );
-                }
+                const indexerState =
+                    readIndexerState();
 
                 const accounts =
                     Number.isFinite(
@@ -1579,10 +1593,8 @@ const server =
 
                 const assets =
                     database.prepare(`
-                        SELECT COUNT(DISTINCT token) AS total
-                        FROM transfers
-                        WHERE token IS NOT NULL
-                          AND token <> ''
+                        SELECT COUNT(*) AS total
+                        FROM assets
                     `).get().total;
 
                 const anchors =
