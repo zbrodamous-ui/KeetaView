@@ -54,6 +54,16 @@ database.exec(`
     PRAGMA busy_timeout = 5000;
 `);
 
+database.aggregate(
+    "sum_bigint",
+    {
+        start: 0n,
+        step: (total, value) =>
+            total + BigInt(value || 0),
+        result: total => total.toString()
+    }
+);
+
 const port =
     Number(process.env.PORT) ||
     3000;
@@ -1380,7 +1390,8 @@ const server =
                     database.prepare(`
                         SELECT
                             token,
-                            COUNT(*) AS transfers
+                            COUNT(*) AS transfers,
+                            sum_bigint(amount) AS total_amount
                         FROM transfers
                             INDEXED BY transfers_by_timestamp
                         WHERE token IS NOT NULL
