@@ -106,6 +106,14 @@ const anchorsTableAlreadyExisted = Boolean(
     `).get()
 );
 
+const assetsTableAlreadyExisted = Boolean(
+    database.prepare(`
+        SELECT 1 FROM sqlite_master
+        WHERE type = 'table' AND name = 'assets'
+        LIMIT 1
+    `).get()
+);
+
 database.exec(`
     PRAGMA journal_mode = WAL;
     PRAGMA busy_timeout = 5000;
@@ -137,6 +145,12 @@ database.exec(`
         amount TEXT,
         timestamp TEXT NOT NULL,
         UNIQUE(block_hash, operation_index)
+    )
+`);
+
+database.exec(`
+    CREATE TABLE IF NOT EXISTS assets (
+        token TEXT PRIMARY KEY
     )
 `);
 
@@ -252,6 +266,18 @@ database.exec(`
         anchors_by_transaction_id
     ON anchors(anchor_transaction_id);
 `);
+
+if (!assetsTableAlreadyExisted) {
+    console.log("Building the indexed asset summary...");
+
+    database.exec(`
+        INSERT OR IGNORE INTO assets (token)
+        SELECT DISTINCT token
+        FROM transfers
+        WHERE token IS NOT NULL
+          AND token <> ''
+    `);
+}
 
 function getFileSize(file) {
     try {
@@ -380,6 +406,12 @@ ON CONFLICT(address) DO UPDATE SET
             timestamp
         )
         VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+
+const insertAsset =
+    database.prepare(`
+        INSERT OR IGNORE INTO assets (token)
+        VALUES (?)
     `);
 
     const insertOperation =
@@ -983,6 +1015,8 @@ storeAnchor(
         operation.amount.toString(),
         timestamp
     );
+
+    insertAsset.run(token);
 
 }
         }
