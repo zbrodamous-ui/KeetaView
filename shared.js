@@ -4043,6 +4043,101 @@ initializeSettings();
 initializeTranslations();
 initializeDetailSearch();
 
+function initializeAnonymousTrafficTracking() {
+    if (
+        navigator.doNotTrack === "1" ||
+        window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1"
+    ) {
+        return;
+    }
+
+    const storageKey =
+        "keetaview-anonymous-visitor-v1";
+    let visitorId;
+
+    try {
+        visitorId =
+            window.localStorage.getItem(
+                storageKey
+            );
+
+        if (!visitorId) {
+            visitorId = crypto.randomUUID();
+            window.localStorage.setItem(
+                storageKey,
+                visitorId
+            );
+        }
+    } catch {
+        return;
+    }
+
+    let referrer = "direct";
+
+    try {
+        if (document.referrer) {
+            const source =
+                new URL(document.referrer);
+
+            if (source.hostname !== window.location.hostname) {
+                referrer = source.hostname;
+            }
+        }
+    } catch {
+        referrer = "direct";
+    }
+
+    const pagePath =
+        window.location.pathname
+            .replace(/\.html$/, "") || "/";
+
+    const sendEvent = (type) => {
+        if (
+            type === "heartbeat" &&
+            document.visibilityState !== "visible"
+        ) {
+            return;
+        }
+
+        fetch(
+            "/api/traffic/event",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
+                body: JSON.stringify({
+                    visitorId,
+                    type,
+                    path: pagePath,
+                    referrer
+                }),
+                keepalive: true
+            }
+        ).catch(() => {});
+    };
+
+    sendEvent("pageview");
+
+    window.setInterval(
+        () => sendEvent("heartbeat"),
+        30 * 1000
+    );
+
+    document.addEventListener(
+        "visibilitychange",
+        () => {
+            if (document.visibilityState === "visible") {
+                sendEvent("heartbeat");
+            }
+        }
+    );
+}
+
+initializeAnonymousTrafficTracking();
+
 
 function attachKeetaCopyButton(element, value, label = "value") {
     if (!element || !value || value === "Not available") {
