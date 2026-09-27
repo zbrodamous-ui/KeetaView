@@ -1,6 +1,7 @@
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import {
@@ -21,6 +22,12 @@ const stateFile =
     path.join(
         dataDirectory,
         "state.json"
+    );
+
+const trafficDatabaseFile =
+    path.join(
+        dataDirectory,
+        "site-analytics.db"
     );
 
 function readIndexerState() {
@@ -63,6 +70,56 @@ database.aggregate(
         result: total => total.toString()
     }
 );
+
+const trafficDatabase =
+    new DatabaseSync(
+        trafficDatabaseFile
+    );
+
+trafficDatabase.exec(`
+    PRAGMA journal_mode = WAL;
+    PRAGMA busy_timeout = 2000;
+
+    CREATE TABLE IF NOT EXISTS traffic_visitors (
+        visitor_id TEXT PRIMARY KEY,
+        first_seen INTEGER NOT NULL,
+        last_seen INTEGER NOT NULL,
+        total_pageviews INTEGER NOT NULL DEFAULT 0,
+        last_path TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS traffic_daily_visitors (
+        day TEXT NOT NULL,
+        visitor_id TEXT NOT NULL,
+        first_seen INTEGER NOT NULL,
+        last_seen INTEGER NOT NULL,
+        pageviews INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (day, visitor_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS traffic_daily_pages (
+        day TEXT NOT NULL,
+        path TEXT NOT NULL,
+        pageviews INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (day, path)
+    );
+
+    CREATE TABLE IF NOT EXISTS traffic_daily_referrers (
+        day TEXT NOT NULL,
+        referrer TEXT NOT NULL,
+        pageviews INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (day, referrer)
+    );
+
+    CREATE TABLE IF NOT EXISTS traffic_active_sessions (
+        visitor_id TEXT PRIMARY KEY,
+        last_seen INTEGER NOT NULL,
+        last_path TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS traffic_active_last_seen
+        ON traffic_active_sessions(last_seen);
+`);
 
 const port =
     Number(process.env.PORT) ||
@@ -147,6 +204,313 @@ function sendJson(
     response.end(
         JSON.stringify(data)
     );
+}
+
+function readJsonBody(request, maximumBytes = 4096) {
+    return new Promise((resolve, reject) => {
+        let body = "";
+
+        request.setEncoding("utf8");
+        request.on("data", (chunk) => {
+            body += chunk;
+
+            if (Buffer.byteLength(body) > maximumBytes) {
+                reject(
+                    new Error("Request body is too large.")
+                );
+                request.destroy();
+            }
+        });
+        request.on("end", () => {
+            try {
+                resolve(JSON.parse(body || "{}"));
+            } catch {
+                reject(
+                    new Error("Request body is not valid JSON.")
+                );
+            }
+        });
+        request.on("error", reject);
+    });
+}
+
+function normalizeTrafficEvent(data) {
+    const visitorId =
+        String(data?.visitorId || "").toLowerCase();
+    const eventType =
+        data?.type === "heartbeat"
+            ? "heartbeat"
+            : "pageview";
+    const pagePath =
+        String(data?.path || "/")
+            .split("?")[0]
+            .slice(0, 120);
+    const referrer =
+        String(data?.referrer || "direct")
+            .toLowerCase()
+            .slice(0, 120);
+
+    if (
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
+            visitorId
+        )
+    ) {
+        throw new Error("Invalid anonymous visitor ID.");
+    }
+
+    if (!/^\/[A-Za-z0-9/_-]*$/.test(pagePath)) {
+        throw new Error("Invalid page path.");
+    }
+
+    if (
+        referrer !== "direct" &&
+        !/^[a-z0-9.-]+$/.test(referrer)
+    ) {
+        throw new Error("Invalid referral source.");
+    }
+
+    return {
+        visitorId,
+        eventType,
+        pagePath,
+        referrer
+    };
+}
+
+function isSameOriginTrafficRequest(request) {
+    const origin = request.headers.origin;
+
+    if (!origin) {
+        return true;
+    }
+
+    try {
+        return new URL(origin).host === request.headers.host;
+    } catch {
+        return false;
+    }
+}
+
+function recordTrafficEvent(event) {
+    const now = Date.now();
+    const day =
+        new Date(now)
+            .toISOString()
+            .slice(0, 10);
+
+    trafficDatabase.prepare(`
+        INSERT INTO traffic_active_sessions (
+            visitor_id,
+            last_seen,
+            last_path
+        ) VALUES (?, ?, ?)
+        ON CONFLICT(visitor_id) DO UPDATE SET
+            last_seen = excluded.last_seen,
+            last_path = excluded.last_path
+    `).run(
+        event.visitorId,
+        now,
+        event.pagePath
+    );
+
+    if (event.eventType === "heartbeat") {
+        return;
+    }
+
+    trafficDatabase.exec("BEGIN IMMEDIATE");
+
+    try {
+        trafficDatabase.prepare(`
+            INSERT INTO traffic_visitors (
+                visitor_id,
+                first_seen,
+                last_seen,
+                total_pageviews,
+                last_path
+            ) VALUES (?, ?, ?, 1, ?)
+            ON CONFLICT(visitor_id) DO UPDATE SET
+                last_seen = excluded.last_seen,
+                total_pageviews = total_pageviews + 1,
+                last_path = excluded.last_path
+        `).run(
+            event.visitorId,
+            now,
+            now,
+            event.pagePath
+        );
+
+        trafficDatabase.prepare(`
+            INSERT INTO traffic_daily_visitors (
+                day,
+                visitor_id,
+                first_seen,
+                last_seen,
+                pageviews
+            ) VALUES (?, ?, ?, ?, 1)
+            ON CONFLICT(day, visitor_id) DO UPDATE SET
+                last_seen = excluded.last_seen,
+                pageviews = pageviews + 1
+        `).run(
+            day,
+            event.visitorId,
+            now,
+            now
+        );
+
+        trafficDatabase.prepare(`
+            INSERT INTO traffic_daily_pages (
+                day,
+                path,
+                pageviews
+            ) VALUES (?, ?, 1)
+            ON CONFLICT(day, path) DO UPDATE SET
+                pageviews = pageviews + 1
+        `).run(
+            day,
+            event.pagePath
+        );
+
+        trafficDatabase.prepare(`
+            INSERT INTO traffic_daily_referrers (
+                day,
+                referrer,
+                pageviews
+            ) VALUES (?, ?, 1)
+            ON CONFLICT(day, referrer) DO UPDATE SET
+                pageviews = pageviews + 1
+        `).run(
+            day,
+            event.referrer
+        );
+
+        trafficDatabase.exec("COMMIT");
+    } catch (error) {
+        trafficDatabase.exec("ROLLBACK");
+        throw error;
+    }
+}
+
+function getPublicTrafficSummary() {
+    const now = Date.now();
+    const activeCutoff = now - 2 * 60 * 1000;
+    const day =
+        new Date(now)
+            .toISOString()
+            .slice(0, 10);
+
+    trafficDatabase.prepare(`
+        DELETE FROM traffic_active_sessions
+        WHERE last_seen < ?
+    `).run(now - 24 * 60 * 60 * 1000);
+
+    const active =
+        trafficDatabase.prepare(`
+            SELECT COUNT(*) AS total
+            FROM traffic_active_sessions
+            WHERE last_seen >= ?
+        `).get(activeCutoff).total;
+    const today =
+        trafficDatabase.prepare(`
+            SELECT
+                COUNT(*) AS visitors,
+                COALESCE(SUM(pageviews), 0) AS pageviews
+            FROM traffic_daily_visitors
+            WHERE day = ?
+        `).get(day);
+
+    return {
+        activeNow: Number(active),
+        visitorsToday: Number(today.visitors),
+        pageviewsToday: Number(today.pageviews)
+    };
+}
+
+function isValidAnalyticsKey(request) {
+    const expectedKey =
+        process.env.KEETAVIEW_ANALYTICS_KEY;
+    const suppliedKey =
+        String(
+            request.headers.authorization || ""
+        ).replace(/^Bearer\s+/i, "");
+
+    if (!expectedKey || !suppliedKey) {
+        return false;
+    }
+
+    const expected = Buffer.from(expectedKey);
+    const supplied = Buffer.from(suppliedKey);
+
+    return (
+        expected.length === supplied.length &&
+        crypto.timingSafeEqual(expected, supplied)
+    );
+}
+
+function getPrivateTrafficSummary() {
+    const publicSummary =
+        getPublicTrafficSummary();
+    const totals =
+        trafficDatabase.prepare(`
+            SELECT
+                COUNT(*) AS visitors,
+                COALESCE(SUM(total_pageviews), 0) AS pageviews
+            FROM traffic_visitors
+        `).get();
+    const returningVisitors =
+        trafficDatabase.prepare(`
+            SELECT COUNT(*) AS total
+            FROM (
+                SELECT visitor_id
+                FROM traffic_daily_visitors
+                GROUP BY visitor_id
+                HAVING COUNT(*) > 1
+            )
+        `).get().total;
+    const daily =
+        trafficDatabase.prepare(`
+            SELECT
+                day,
+                COUNT(*) AS visitors,
+                SUM(pageviews) AS pageviews
+            FROM traffic_daily_visitors
+            WHERE day >= date('now', '-29 days')
+            GROUP BY day
+            ORDER BY day
+        `).all();
+    const topPages =
+        trafficDatabase.prepare(`
+            SELECT
+                path,
+                SUM(pageviews) AS pageviews
+            FROM traffic_daily_pages
+            WHERE day >= date('now', '-29 days')
+            GROUP BY path
+            ORDER BY pageviews DESC
+            LIMIT 20
+        `).all();
+    const referrers =
+        trafficDatabase.prepare(`
+            SELECT
+                referrer,
+                SUM(pageviews) AS pageviews
+            FROM traffic_daily_referrers
+            WHERE day >= date('now', '-29 days')
+            GROUP BY referrer
+            ORDER BY pageviews DESC
+            LIMIT 20
+        `).all();
+
+    return {
+        ...publicSummary,
+        totals: {
+            visitors: Number(totals.visitors),
+            pageviews: Number(totals.pageviews),
+            returningVisitors: Number(returningVisitors)
+        },
+        daily,
+        topPages,
+        referrers
+    };
 }
 
 const staticContentTypes = {
@@ -310,6 +674,102 @@ const server =
                     request.url,
                     "http://127.0.0.1"
                 );
+
+            if (
+                request.method === "POST" &&
+                url.pathname === "/api/traffic/event"
+            ) {
+                if (!isSameOriginTrafficRequest(request)) {
+                    sendJson(
+                        response,
+                        403,
+                        { error: "Cross-origin traffic events are not accepted." }
+                    );
+                    return;
+                }
+
+                try {
+                    const event =
+                        normalizeTrafficEvent(
+                            await readJsonBody(request)
+                        );
+
+                    recordTrafficEvent(event);
+                    response.writeHead(
+                        204,
+                        {
+                            "Cache-Control": "no-store",
+                            "X-Content-Type-Options": "nosniff"
+                        }
+                    );
+                    response.end();
+                } catch (error) {
+                    sendJson(
+                        response,
+                        400,
+                        { error: error.message }
+                    );
+                }
+
+                return;
+            }
+
+            if (
+                request.method === "GET" &&
+                url.pathname === "/api/traffic/public"
+            ) {
+                try {
+                    sendJson(
+                        response,
+                        200,
+                        getPublicTrafficSummary()
+                    );
+                } catch (error) {
+                    console.error(
+                        "Unable to read public traffic totals:",
+                        error
+                    );
+                    sendJson(
+                        response,
+                        503,
+                        { error: "Traffic totals are temporarily unavailable." }
+                    );
+                }
+                return;
+            }
+
+            if (
+                request.method === "GET" &&
+                url.pathname === "/api/traffic/summary"
+            ) {
+                if (!isValidAnalyticsKey(request)) {
+                    sendJson(
+                        response,
+                        401,
+                        { error: "A valid analytics key is required." }
+                    );
+                    return;
+                }
+
+                try {
+                    sendJson(
+                        response,
+                        200,
+                        getPrivateTrafficSummary()
+                    );
+                } catch (error) {
+                    console.error(
+                        "Unable to read private traffic totals:",
+                        error
+                    );
+                    sendJson(
+                        response,
+                        503,
+                        { error: "Traffic totals are temporarily unavailable." }
+                    );
+                }
+                return;
+            }
 
             if (
                 request.method === "GET" &&
