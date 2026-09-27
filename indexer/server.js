@@ -161,7 +161,11 @@ const staticContentTypes = {
 
 async function sendStaticFile(
     pathname,
-    response
+    response,
+    {
+        headOnly = false,
+        ifNoneMatch = null
+    } = {}
 ) {
     let requestedFile;
 
@@ -198,41 +202,85 @@ async function sendStaticFile(
         );
 
     try {
-        const file =
-            await fs.promises.readFile(
+        const fileStats =
+            await fs.promises.stat(
                 filePath
             );
+
+        if (!fileStats.isFile()) {
+            return false;
+        }
+
         const extension =
             path.extname(
                 requestedFile
             ).toLowerCase();
 
+        const etag =
+            `W/"${fileStats.size.toString(16)}-${Math.trunc(fileStats.mtimeMs).toString(16)}"`;
+
+        const headers = {
+            "Content-Type":
+                staticContentTypes[extension] ||
+                "application/octet-stream",
+            "Content-Length":
+                fileStats.size,
+            "Cache-Control":
+                (
+                    extension === ".html" ||
+                    extension === ".js" ||
+                    extension === ".css"
+                )
+                    ? "no-cache"
+                    : "public, max-age=3600",
+            ETag: etag,
+            "Last-Modified":
+                fileStats.mtime.toUTCString(),
+            "X-Content-Type-Options":
+                "nosniff",
+            "Referrer-Policy":
+                "strict-origin-when-cross-origin",
+            "X-Frame-Options":
+                "DENY",
+
+            "Content-Security-Policy":
+                "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://static.test.keeta.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https: wss:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+        };
+
+        const requestEtags =
+            String(ifNoneMatch || "")
+                .split(",")
+                .map(value => value.trim());
+
+        if (
+            requestEtags.includes("*") ||
+            requestEtags.includes(etag)
+        ) {
+            delete headers["Content-Length"];
+            response.writeHead(
+                304,
+                headers
+            );
+            response.end();
+
+            return true;
+        }
+
         response.writeHead(
             200,
-            {
-                "Content-Type":
-                    staticContentTypes[extension] ||
-                    "application/octet-stream",
-                "Cache-Control":
-                    (
-                        extension === ".html" ||
-                        extension === ".js" ||
-                        extension === ".css"
-                    )
-                        ? "no-cache"
-                        : "public, max-age=3600",
-                "X-Content-Type-Options":
-                    "nosniff",
-                "Referrer-Policy":
-                    "strict-origin-when-cross-origin",
-                "X-Frame-Options":
-                    "DENY",
-
-                "Content-Security-Policy":
-                    "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://static.test.keeta.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https: wss:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
-            }
+            headers
         );
-        response.end(file);
+
+        if (headOnly) {
+            response.end();
+        } else {
+            const file =
+                await fs.promises.readFile(
+                    filePath
+                );
+
+            response.end(file);
+        }
 
         return true;
     } catch (error) {
@@ -1728,10 +1776,21 @@ const server =
             }
 
             if (
-                request.method === "GET" &&
+                (
+                    request.method === "GET" ||
+                    request.method === "HEAD"
+                ) &&
                 await sendStaticFile(
                     url.pathname,
-                    response
+                    response,
+                    {
+                        headOnly:
+                            request.method === "HEAD",
+                        ifNoneMatch:
+                            request.headers[
+                                "if-none-match"
+                            ]
+                    }
                 )
             ) {
                 return;
