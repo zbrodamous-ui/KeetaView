@@ -7278,3 +7278,144 @@ html[data-theme="soft"] .system-status strong {
     overflow-y: hidden;
     box-sizing: border-box;
 }
+
+/* ==========================
+   Private Traffic Dashboard
+========================== */
+
+.traffic-page-body {
+    min-height: 100vh;
+    margin: 0;
+    background: #000000;
+    color: #ffffff;
+}
+
+.traffic-header {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: min(100% - 40px, 1320px);
+    margin: 0 auto;
+    padding: 24px 0 10px;
+}
+
+.traffic-page-body .home-brand { color: #ffffff; }
+.traffic-page-body .home-brand span { color: #ffffff; }
+.traffic-back-link { color: #42a5ff; text-decoration: none; }
+
+.traffic-dashboard {
+    position: relative;
+    z-index: 1;
+    width: min(100% - 40px, 1320px);
+    margin: 0 auto;
+    padding: 28px 0 72px;
+}
+
+.traffic-access-card,
+.traffic-title-row,
+.traffic-metric-card,
+.traffic-card {
+    background: rgba(0, 0, 0, 0.94);
+    border: 1px solid #292929;
+    border-radius: 16px;
+}
+
+.traffic-access-card {
+    max-width: 620px;
+    margin: 10vh auto 0;
+    padding: 34px;
+}
+
+.traffic-access-card h1,
+.traffic-title-row h1 { margin: 5px 0 10px; font-size: clamp(2rem, 5vw, 3.25rem); }
+.traffic-access-card > p:not(.home-eyebrow),
+.traffic-title-row > div > p:last-child { color: #a8a8a8; }
+.traffic-access-form { margin-top: 28px; }
+.traffic-access-form label { display: block; margin-bottom: 8px; font-weight: 700; }
+.traffic-access-form > div { display: grid; grid-template-columns: 1fr auto; }
+.traffic-access-form input,
+.traffic-access-form button,
+.traffic-actions button {
+    min-height: 46px;
+    border: 1px solid #343434;
+    background: #0a0a0a;
+    color: #ffffff;
+    font: inherit;
+}
+.traffic-access-form input { min-width: 0; padding: 0 14px; border-radius: 9px 0 0 9px; }
+.traffic-access-form button { padding: 0 18px; border-radius: 0 9px 9px 0; cursor: pointer; }
+.traffic-access-form button:hover,
+.traffic-actions button:hover { border-color: #42a5ff; }
+.traffic-privacy-note { margin-bottom: 0; font-size: 0.82rem; }
+.traffic-error { margin-top: 16px; color: #ff8c8c !important; }
+.traffic-panel-error { padding: 14px 18px; background: #260e0e; border: 1px solid #692525; border-radius: 10px; }
+
+.traffic-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 24px;
+    margin-bottom: 16px;
+    padding: 26px 28px;
+}
+.traffic-actions { display: flex; align-items: center; gap: 10px; }
+.traffic-actions span { color: #8b98a8; font-size: 0.8rem; white-space: nowrap; }
+.traffic-actions button { padding: 0 16px; border-radius: 9px; cursor: pointer; }
+.traffic-actions button:disabled { cursor: wait; opacity: 0.55; }
+
+.traffic-summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
+.traffic-metric-card { padding: 22px; }
+.traffic-metric-card > span { color: #a9a9a9; font-size: 0.82rem; font-weight: 700; }
+.traffic-metric-card > strong { display: block; margin: 10px 0 8px; font-size: clamp(1.8rem, 4vw, 2.6rem); }
+.traffic-metric-card > small { color: #818181; }
+.traffic-live-card strong { color: #36d38b; }
+
+.traffic-primary-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 16px; }
+.traffic-card { min-width: 0; overflow: hidden; }
+.traffic-card:first-child { grid-row: span 2; }
+.traffic-card-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 22px; border-bottom: 1px solid #292929; }
+.traffic-card-header h2 { margin: 4px 0 0; }
+.traffic-card-header > span { color: #818181; font-size: 0.78rem; }
+
+.traffic-chart { display: grid; grid-template-columns: repeat(30, minmax(26px, 1fr)); align-items: end; gap: 7px; min-height: 330px; padding: 28px 20px 12px; overflow-x: auto; }
+.traffic-chart-column { display: grid; grid-template-rows: 245px auto; gap: 9px; min-width: 26px; text-align: center; }
+.traffic-chart-bars { display: flex; align-items: end; justify-content: center; gap: 3px; }
+.traffic-chart-bars i { width: 8px; min-height: 2px; border-radius: 4px 4px 0 0; }
+.traffic-chart-bars .visitors,
+.traffic-chart-legend .visitors { background: #36d38b; }
+.traffic-chart-bars .pageviews,
+.traffic-chart-legend .pageviews { background: #268cf0; }
+.traffic-chart-column > span { color: #7f8b9b; font-size: 0.65rem; white-space: nowrap; transform: rotate(-45deg); }
+.traffic-chart-legend { display: flex; justify-content: center; gap: 20px; padding: 10px 20px 20px; color: #a8a8a8; font-size: 0.78rem; }
+.traffic-chart-legend span { display: flex; align-items: center; gap: 7px; }
+.traffic-chart-legend i { width: 10px; height: 10px; border-radius: 3px; }
+
+.traffic-ranked-list { margin: 0; padding: 0; list-style: none; }
+.traffic-ranked-list li { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 15px 20px; border-bottom: 1px solid #242424; }
+.traffic-ranked-list li:last-child { border-bottom: 0; }
+.traffic-ranked-list li > span { color: #71839a; font-size: 0.8rem; }
+.traffic-ranked-list li > strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.traffic-ranked-list li > span:last-child { color: #42a5ff; white-space: nowrap; }
+.traffic-ranked-list .traffic-empty { display: block; color: #818181; }
+
+@media (max-width: 850px) {
+    .traffic-summary-grid { grid-template-columns: repeat(2, 1fr); }
+    .traffic-primary-grid { grid-template-columns: 1fr; }
+    .traffic-card:first-child { grid-row: auto; }
+}
+
+@media (max-width: 600px) {
+    .traffic-header,
+    .traffic-dashboard { width: min(100% - 24px, 1320px); }
+    .traffic-title-row { align-items: flex-start; flex-direction: column; padding: 22px; }
+    .traffic-actions { flex-wrap: wrap; }
+    .traffic-summary-grid { grid-template-columns: 1fr; }
+    .traffic-access-card { padding: 24px; }
+    .traffic-access-form > div { grid-template-columns: 1fr; gap: 8px; }
+    .traffic-access-form input,
+    .traffic-access-form button { border-radius: 9px; }
+    .traffic-ranked-list li { grid-template-columns: 34px minmax(0, 1fr); }
+    .traffic-ranked-list li > span:last-child { grid-column: 2; }
+}

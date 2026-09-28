@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Private Traffic | KeetaView</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+
+<body class="traffic-page-body">
+<header class="traffic-header">
+    <a class="home-brand" href="index.html" aria-label="KeetaView home">
+        <svg class="home-brand-mark" viewBox="0 0 100 60" aria-hidden="true">
+            <path class="brand-eye-outline" d="M5 30C18 12 33 5 50 5s32 7 45 25C82 48 67 55 50 55S18 48 5 30Z"/>
+            <path class="brand-eye-k" d="M28 17v27m0-14 14-13M28 30l20 19"/>
+            <path class="brand-eye-k" d="m45 39 7 9 15-14"/>
+            <circle class="brand-eye-pupil" cx="54" cy="27" r="9"/>
+        </svg>
+        Keeta<span>View</span>
+    </a>
+    <a class="traffic-back-link" href="index.html">Back to site</a>
+</header>
+
+<main class="traffic-dashboard">
+    <section id="trafficAccess" class="traffic-access-card">
+        <p class="home-eyebrow">PRIVATE ANALYTICS</p>
+        <h1>Traffic Dashboard</h1>
+        <p>Enter the private analytics key to view anonymous, aggregate site traffic.</p>
+        <form id="trafficAccessForm" class="traffic-access-form">
+            <label for="trafficKey">Analytics key</label>
+            <div>
+                <input id="trafficKey" type="password" autocomplete="off" required>
+                <button type="submit">Unlock dashboard</button>
+            </div>
+        </form>
+        <p class="traffic-privacy-note">The key is kept only for this browser session and is sent only to KeetaView.</p>
+        <p id="trafficAccessError" class="traffic-error" role="alert" hidden></p>
+    </section>
+
+    <section id="trafficContent" hidden>
+        <header class="traffic-title-row">
+            <div>
+                <p class="home-eyebrow">PRIVATE ANALYTICS</p>
+                <h1>Site Traffic</h1>
+                <p>Privacy-friendly visitor activity without raw IP or wallet tracking.</p>
+            </div>
+            <div class="traffic-actions">
+                <span id="trafficUpdated" aria-live="polite">Loading…</span>
+                <button id="trafficRefresh" type="button">Refresh</button>
+                <button id="trafficLock" type="button">Lock</button>
+            </div>
+        </header>
+
+        <p id="trafficLoadError" class="traffic-error traffic-panel-error" role="alert" hidden></p>
+
+        <section class="traffic-summary-grid" aria-label="Traffic totals">
+            <article class="traffic-metric-card traffic-live-card"><span>Active Now</span><strong id="activeNow">—</strong><small>Active in the last few minutes</small></article>
+            <article class="traffic-metric-card"><span>Visitors Today</span><strong id="visitorsToday">—</strong><small>Anonymous unique browsers</small></article>
+            <article class="traffic-metric-card"><span>Pageviews Today</span><strong id="pageviewsToday">—</strong><small>Pages viewed today</small></article>
+            <article class="traffic-metric-card"><span>Total Visitors</span><strong id="totalVisitors">—</strong><small>Since measurement began</small></article>
+            <article class="traffic-metric-card"><span>Total Pageviews</span><strong id="totalPageviews">—</strong><small>Since measurement began</small></article>
+            <article class="traffic-metric-card"><span>Returning Visitors</span><strong id="returningVisitors">—</strong><small>Seen on more than one UTC day</small></article>
+        </section>
+
+        <section class="traffic-primary-grid">
+            <article class="traffic-card">
+                <header class="traffic-card-header"><div><p class="home-eyebrow">LAST 30 DAYS</p><h2>Daily Activity</h2></div><span>Visitors / pageviews</span></header>
+                <div id="trafficChart" class="traffic-chart" aria-label="Daily visitors and pageviews"></div>
+                <div class="traffic-chart-legend"><span><i class="visitors"></i>Visitors</span><span><i class="pageviews"></i>Pageviews</span></div>
+            </article>
+
+            <article class="traffic-card">
+                <header class="traffic-card-header"><div><p class="home-eyebrow">POPULAR CONTENT</p><h2>Top Pages</h2></div></header>
+                <ol id="topPages" class="traffic-ranked-list"></ol>
+            </article>
+
+            <article class="traffic-card">
+                <header class="traffic-card-header"><div><p class="home-eyebrow">DISCOVERY</p><h2>Referrers</h2></div></header>
+                <ol id="trafficReferrers" class="traffic-ranked-list"></ol>
+            </article>
+        </section>
+    </section>
+</main>
+
+<script src="background.js"></script>
+<script src="traffic.js"></script>
+</body>
+</html>

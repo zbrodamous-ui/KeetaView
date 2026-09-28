@@ -8,6 +8,7 @@
         "addresses-page-body",
         "assets-page-body",
         "analytics-page-body",
+        "traffic-page-body",
         "status-page-body",
         "detail-page-body"
     ];
