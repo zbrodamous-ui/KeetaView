@@ -57,13 +57,13 @@ function shutdown(exitCode = 0) {
 
     children.forEach((child) => {
         if (!child.killed) {
-            child.kill();
+            child.kill("SIGTERM");
         }
     });
 
     setTimeout(
         () => process.exit(exitCode),
-        500
+        5000
     ).unref();
 }
 

@@ -26,6 +26,21 @@ const stateFile =
         "state.json"
     );
 
+const stateTemporaryFile =
+    `${stateFile}.tmp`;
+
+function saveState(stateValue) {
+    fs.writeFileSync(
+        stateTemporaryFile,
+        JSON.stringify(stateValue, null, 2)
+    );
+
+    fs.renameSync(
+        stateTemporaryFile,
+        stateFile
+    );
+}
+
 const databaseFile =
     path.join(
         dataDirectory,
@@ -63,7 +78,8 @@ if (
             databaseFile,
             `${databaseFile}-wal`,
             `${databaseFile}-shm`,
-            stateFile
+            stateFile,
+            stateTemporaryFile
         ]
     ) {
         if (fs.existsSync(file)) {
@@ -368,6 +384,45 @@ function checkpointDatabase() {
     }
 }
 
+let shuttingDown = false;
+
+function shutdownIndexer(signal) {
+    if (shuttingDown) {
+        return;
+    }
+
+    shuttingDown = true;
+
+    console.log(
+        `Closing KeetaView indexer after ${signal}...`
+    );
+
+    checkpointDatabase();
+
+    try {
+        database.close();
+    } catch (error) {
+        console.error(
+            "Unable to close the KeetaView index cleanly:",
+            error
+        );
+
+        process.exit(1);
+    }
+
+    process.exit(0);
+}
+
+process.once(
+    "SIGINT",
+    () => shutdownIndexer("SIGINT")
+);
+
+process.once(
+    "SIGTERM",
+    () => shutdownIndexer("SIGTERM")
+);
+
 checkpointDatabase();
 
 const insertBlock =
@@ -608,10 +663,7 @@ for (const entry of history) {
     await processHistoryEntry(entry);
 }
 
-fs.writeFileSync(
-    stateFile,
-    JSON.stringify(state, null, 2)
-);
+saveState(state);
 
 checkpointDatabase();
 
@@ -694,10 +746,7 @@ async function refreshLatestHistory() {
     state.lastTipRefreshAt =
         new Date().toISOString();
 
-    fs.writeFileSync(
-        stateFile,
-        JSON.stringify(state, null, 2)
-    );
+    saveState(state);
 
     console.log(
         "Latest network history refreshed.",
@@ -1110,10 +1159,7 @@ async function backfillHistoricalAnchorInputs(
             true;
     }
 
-    fs.writeFileSync(
-        stateFile,
-        JSON.stringify(state, null, 2)
-    );
+    saveState(state);
 
     const remainingOperations = Number(
         countOperationsAfterRowid.get(nextCursor).total
@@ -1226,10 +1272,7 @@ if (fs.existsSync(stateFile)) {
 
 }
 
-fs.writeFileSync(
-    stateFile,
-    JSON.stringify(state, null, 2)
-);
+saveState(state);
 
 console.log(
     "Indexer state saved."
@@ -1392,10 +1435,7 @@ if (watchMode) {
             ) || currentDatabaseBytes()
     };
 
-    fs.writeFileSync(
-        stateFile,
-        JSON.stringify(state, null, 2)
-    );
+    saveState(state);
 
     let historicalBackfillComplete =
         !historicalBackfillEnabled ||
@@ -1523,10 +1563,7 @@ if (watchMode) {
                     );
                 }
 
-                fs.writeFileSync(
-                    stateFile,
-                    JSON.stringify(state, null, 2)
-                );
+                saveState(state);
             } catch (error) {
                 state.historicalBackfill.lastFailureAt =
                     new Date().toISOString();
@@ -1542,10 +1579,7 @@ if (watchMode) {
                 state.historicalBackfill.lastBatchDurationMs =
                     Date.now() - attemptStartedAt.getTime();
 
-                fs.writeFileSync(
-                    stateFile,
-                    JSON.stringify(state, null, 2)
-                );
+                saveState(state);
 
                 console.error(
                     "Historical backfill failed:",
