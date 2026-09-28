@@ -2276,3 +2276,46 @@ server.listen(
         );
     }
 );
+
+let shuttingDown = false;
+
+function shutdown(signal) {
+    if (shuttingDown) {
+        return;
+    }
+
+    shuttingDown = true;
+
+    console.log(
+        `Closing KeetaView API after ${signal}...`
+    );
+
+    server.close(() => {
+        try {
+            trafficDatabase.close();
+            database.close();
+        } catch (error) {
+            console.error(
+                "Unable to close a KeetaView database cleanly:",
+                error
+            );
+        }
+
+        process.exit(0);
+    });
+
+    setTimeout(
+        () => process.exit(1),
+        4000
+    ).unref();
+}
+
+process.once(
+    "SIGINT",
+    () => shutdown("SIGINT")
+);
+
+process.once(
+    "SIGTERM",
+    () => shutdown("SIGTERM")
+);
