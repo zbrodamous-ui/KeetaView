@@ -7447,3 +7447,49 @@ html[data-theme="soft"] .system-status strong {
     .traffic-ranked-list li { grid-template-columns: 34px minmax(0, 1fr); }
     .traffic-ranked-list li > span:last-child { grid-column: 2; }
 }
+/* Mobile detail polish */
+@media (max-width: 700px) {
+    .detail-card .copy-value,
+    .address-summary .copy-value,
+    .transaction-summary .copy-value,
+    .asset-detail-summary .copy-value {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        align-items: start;
+        gap: 8px;
+        min-width: 0;
+    }
+
+    .detail-card .copy-value > :first-child,
+    .address-summary .copy-value > :first-child,
+    .transaction-summary .copy-value > :first-child,
+    .asset-detail-summary .copy-value > :first-child {
+        min-width: 0;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .detail-card .copy-value-button,
+    .address-summary .copy-value-button,
+    .transaction-summary .copy-value-button,
+    .asset-detail-summary .copy-value-button {
+        justify-self: start;
+        margin-left: 0;
+    }
+
+    .analytics-bar-chart {
+        scroll-padding-inline: 14px;
+        scroll-snap-type: x proximity;
+        overscroll-behavior-inline: contain;
+    }
+
+    .analytics-bar-column {
+        scroll-snap-align: start;
+    }
+}
+
+@media (max-width: 480px) {
+    .asset-transfer-row {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
