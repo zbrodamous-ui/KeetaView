@@ -29,6 +29,12 @@ const stateFile =
 const stateTemporaryFile =
     `${stateFile}.tmp`;
 
+const apiActivityFile =
+    path.join(
+        dataDirectory,
+        "api-activity"
+    );
+
 function saveState(stateValue) {
     fs.writeFileSync(
         stateTemporaryFile,
@@ -576,7 +582,7 @@ const requestedHistoricalBatchDepth =
     Number(
         process.env
             .HISTORICAL_BACKFILL_BATCH_SIZE ??
-        5
+        1
     );
 
 const historicalBatchDepth =
@@ -584,7 +590,7 @@ const historicalBatchDepth =
     requestedHistoricalBatchDepth >= 1 &&
     requestedHistoricalBatchDepth <= 50
         ? requestedHistoricalBatchDepth
-        : 5;
+        : 1;
 
 function refreshDiscoveredTotals() {
     state.accountsFound =
@@ -1406,6 +1412,40 @@ if (watchMode) {
     const historicalBackfillEnabled =
         process.env.HISTORICAL_BACKFILL === "true";
 
+    const requestedBackfillIdleSeconds =
+        Number(
+            process.env
+                .HISTORICAL_BACKFILL_IDLE_SECONDS ??
+            120
+        );
+
+    const backfillIdleSeconds =
+        Number.isFinite(requestedBackfillIdleSeconds) &&
+        requestedBackfillIdleSeconds >= 30 &&
+        requestedBackfillIdleSeconds <= 3600
+            ? requestedBackfillIdleSeconds
+            : 120;
+
+    const publicApiRecentlyActive = () => {
+        try {
+            return (
+                Date.now() -
+                fs.statSync(apiActivityFile).mtimeMs
+            ) < backfillIdleSeconds * 1000;
+        } catch (error) {
+            if (error.code === "ENOENT") {
+                return false;
+            }
+
+            console.warn(
+                "Could not inspect API activity:",
+                error
+            );
+
+            return true;
+        }
+    };
+
     const currentBlockTotal = () =>
         Number(
             countBlocks.get().total
@@ -1423,6 +1463,10 @@ if (watchMode) {
         enabled: historicalBackfillEnabled,
         intervalMinutes:
             backfillIntervalMinutes,
+        idleSeconds:
+            backfillIdleSeconds,
+        lastDeferredAt:
+            existingBackfillState.lastDeferredAt || null,
         complete:
             Boolean(
                 existingBackfillState.complete
@@ -1516,13 +1560,18 @@ if (watchMode) {
             );
         }
 
-        try {
-            await backfillHistoricalAnchorInputs();
-        } catch (error) {
-            console.error(
-                "Historical Anchor input backfill failed:",
-                error
-            );
+        const publicApiIsActive =
+            publicApiRecentlyActive();
+
+        if (!publicApiIsActive) {
+            try {
+                await backfillHistoricalAnchorInputs();
+            } catch (error) {
+                console.error(
+                    "Historical Anchor input backfill failed:",
+                    error
+                );
+            }
         }
 
         const historicalBackfillDue =
@@ -1534,6 +1583,22 @@ if (watchMode) {
             !historicalBackfillComplete &&
             historicalBackfillDue
         ) {
+            if (publicApiIsActive) {
+                lastHistoricalBackfillAt =
+                    Date.now();
+
+                state.historicalBackfill.lastDeferredAt =
+                    new Date().toISOString();
+
+                saveState(state);
+
+                console.log(
+                    `Historical backfill deferred until the public API has been idle for ${backfillIdleSeconds} seconds.`
+                );
+
+                continue;
+            }
+
             const attemptStartedAt =
                 new Date();
 
