@@ -199,33 +199,3 @@ operation row IDs through the existing sender/recipient indexes. Unknown or
 partial names return an empty result without querying the chain database; a full
 uncached registered handle still queues its background lookup. These search paths
 avoid broad field comparisons and full-table/timestamp scans.
-
-### KTA holder watch
-
-Open **Assets → View KTA holders** (or the KTA asset page). The first version lists
-up to 25 **Top observed KTA holders** ranked by their cached network balances,
-with cached usernames and a per-wallet last-check time. This is a partial ranking
-among wallets checked by KeetaView, not a complete network-wide rich list. Each
-snapshot comes from the SDK's `getBalance`; indexed transfer totals are never
-presented as current balances. KTA uses the SDK mainnet base-token address and
-18 decimals, confirmed against its network metadata.
-
-The optional holder worker starts with `npm start` and keeps `holders.db` on the
-existing persistent volume. It discovers wallets from the latest 100 indexed KTA
-transfers and resumably scans up to 1,000 older KTA transfers per cycle, using the
-existing token index. Historical discovery defers during recent public API
-activity. Largest observed transfers prioritize candidates; wallets with no
-indexed KTA activity are outside this first version's coverage. Four sequential
-network balance checks run per cycle by default; successful snapshots refresh
-after six hours and failures retry after an hour without removing the last
-snapshot. Set `HOLDERS_ENABLED=false` to stop that worker, or
-`HOLDER_BALANCE_BATCH_SIZE` (1–10) to change the batch. SDK fetches time out after
-10 seconds. Worker failures do not stop the API/indexer.
-
-Select a holder to open only that wallet's indexed KTA transfers. The wallet and
-asset filters persist through search and pagination, and direction badges show
-Sent, Received or Self transfer. This view refreshes its first page every minute
-while visible. Transfers do not prove a buy or sell; no swap classification or
-notifications are implied. Holder pages use cached balance/name data with no
-live per-row requests. `/api/holders` supports KTA only; filtered operation queries
-accept `address` plus `token` and use existing sender/recipient indexes.
