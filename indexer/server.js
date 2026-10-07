@@ -30,6 +30,34 @@ const trafficDatabaseFile =
         "site-analytics.db"
     );
 
+const apiActivityFile =
+    path.join(
+        dataDirectory,
+        "api-activity"
+    );
+
+let lastApiActivityWrite = 0;
+
+function markApiActivity() {
+    const now = Date.now();
+
+    if (now - lastApiActivityWrite < 5000) {
+        return;
+    }
+
+    lastApiActivityWrite = now;
+
+    fs.promises.writeFile(
+        apiActivityFile,
+        String(now)
+    ).catch((error) => {
+        console.warn(
+            "Could not record API activity:",
+            error
+        );
+    });
+}
+
 function readIndexerState() {
     try {
         return JSON.parse(
@@ -674,6 +702,10 @@ const server =
                     request.url,
                     "http://127.0.0.1"
                 );
+
+            if (url.pathname.startsWith("/api/")) {
+                markApiActivity();
+            }
 
             if (
                 request.method === "POST" &&
