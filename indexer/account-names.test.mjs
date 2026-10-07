@@ -68,6 +68,7 @@ test('transaction API searches and returns cached names without a network worker
     const cache = openAccountNames(path.join(directory, 'account-names.db'));
     cache.save('a', 'Shared');
     cache.save('b', 'Shared');
+    cache.saveUsername('a', 'alice$keeta.xyz');
     cache.db.close();
     // Only the API runs; fixtures supply all names, with no Keeta client involved.
     const child = spawn(process.execPath, ['indexer/server.js'], {
@@ -90,6 +91,14 @@ test('transaction API searches and returns cached names without a network worker
         const detail = await (await fetch('http://127.0.0.1:31987/api/transaction?block=block&operation=0')).json();
         assert.equal(detail.sender_name, 'Shared');
         assert.equal(detail.recipient_name, null);
+        assert.equal(detail.sender_username, 'alice$keeta.xyz');
+        const username = await (await fetch('http://127.0.0.1:31987/api/operations?q=alice%24keeta.xyz')).json();
+        assert.equal(username.total, 1);
+        assert.equal(username.operations[0].sender_username, 'alice$keeta.xyz');
+        assert.equal(username.name_lookup, 'cached');
+        const pending = await (await fetch('http://127.0.0.1:31987/api/operations?q=new_user%24keeta.xyz')).json();
+        assert.equal(pending.name_lookup, 'pending');
+        assert.equal(pending.total, 0);
         const address = await (await fetch('http://127.0.0.1:31987/api/operations?q=unknown')).json();
         assert.equal(address.total, 1);
         const missing = await (await fetch('http://127.0.0.1:31987/api/operations?q=missing')).json();
@@ -119,4 +128,8 @@ test('sender links render untrusted names as text and preserve address destinati
     assert.ok(link.title.includes('keeta_full_address'));
     assert.equal(create('keeta_full_address', null).textContent, 'keeta');
     assert.equal(create(null, name).textContent, '—');
+    const registered = create('keeta_full_address', 'Self assigned', 'alice$keeta.xyz');
+    assert.equal(registered.textContent, 'alice$keeta.xyz (keeta)');
+    assert.ok(registered.title.includes('registered username'));
+    assert.equal(registered.href, link.href);
 });

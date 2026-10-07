@@ -1490,6 +1490,7 @@ const server =
                     {
                         operations:
                             operationsWithAnchorStatus,
+                        name_lookup: accountNames.usernameStatus(searchQuery),
                         total:
                             Number(operationTotal || 0),
                         ...(anchorCounts

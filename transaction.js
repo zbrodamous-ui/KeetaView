@@ -274,16 +274,19 @@ async function loadTransaction() {
 
         status.textContent = "Success";
 
+        const senderLabel = transaction.sender_username || transaction.sender_name;
+        const recipientLabel = transaction.recipient_username || transaction.recipient_name;
+
         from.innerHTML =
             sender !== "Not available"
                 ? `<a href="address.html?address=${encodeURIComponent(
                     sender
-                )}">${escapeKeetaHtml(transaction.sender_name ? `${transaction.sender_name} (${formatKeetaIdentifier(sender)})` : formatKeetaIdentifier(sender))}</a>`
+                )}">${escapeKeetaHtml(senderLabel ? `${senderLabel} (${formatKeetaIdentifier(sender)})` : formatKeetaIdentifier(sender))}</a>`
                 : "Not available";
 
         if (from.querySelector("a")) {
-            from.querySelector("a").title = transaction.sender_name
-                ? `Cached account name: ${transaction.sender_name}\n${sender}` : sender;
+            from.querySelector("a").title = senderLabel
+                ? `Cached ${transaction.sender_username ? "registered username" : "account name"}: ${senderLabel}\n${sender}` : sender;
         }
 
         attachKeetaCopyButton(
@@ -296,12 +299,12 @@ async function loadTransaction() {
             recipient !== "Not available"
                 ? `<a href="address.html?address=${encodeURIComponent(
                     recipient
-                )}">${escapeKeetaHtml(transaction.recipient_name ? `${transaction.recipient_name} (${formatKeetaIdentifier(recipient)})` : formatKeetaIdentifier(recipient))}</a>`
+                )}">${escapeKeetaHtml(recipientLabel ? `${recipientLabel} (${formatKeetaIdentifier(recipient)})` : formatKeetaIdentifier(recipient))}</a>`
                 : "Not available";
 
         if (to.querySelector("a")) {
-            to.querySelector("a").title = transaction.recipient_name
-                ? `Cached account name: ${transaction.recipient_name}\n${recipient}` : recipient;
+            to.querySelector("a").title = recipientLabel
+                ? `Cached ${transaction.recipient_username ? "registered username" : "account name"}: ${recipientLabel}\n${recipient}` : recipient;
         }
 
         attachKeetaCopyButton(
