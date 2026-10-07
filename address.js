@@ -95,6 +95,9 @@ async function loadAddress() {
             <div class="detail-label">Address</div>
             <div class="detail-value">${escapeKeetaHtml(address)}</div>
 
+            <div class="detail-label">Registered username</div>
+            <div class="detail-value" id="addressCachedUsername">Checking cached username…</div>
+
             <div class="detail-label">Name</div>
             <div class="detail-value">
                 ${escapeKeetaHtml(accountInfo.info.name || "Not set")}
@@ -116,6 +119,8 @@ async function loadAddress() {
             address,
             "address"
         );
+
+        loadCachedAddressUsername(address);
 
         balancesTitle.textContent = "Balances";
         balancesList.innerHTML = "";
@@ -380,4 +385,21 @@ if (address) {
 
     balancesTitle.textContent = "";
     balancesList.textContent = "";
+}
+
+async function loadCachedAddressUsername(walletAddress) {
+    const element = document.getElementById("addressCachedUsername");
+    if (!element) return;
+    try {
+        const response = await fetch(`/api/account-label?address=${encodeURIComponent(walletAddress)}`, {
+            headers: { Accept: "application/json" },
+            signal: AbortSignal.timeout(10000)
+        });
+        if (!response.ok) throw new Error("Cached label unavailable");
+        const label = await response.json();
+        element.textContent = label.username || "Not cached";
+        element.title = label.username ? "Registered username from the local cache" : "No registered username is available in the local cache";
+    } catch {
+        element.textContent = "Cache unavailable";
+    }
 }
