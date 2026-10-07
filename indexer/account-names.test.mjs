@@ -71,6 +71,11 @@ test('transaction API searches and returns cached names without a network worker
     cache.saveUsername('a', 'alice$keeta.xyz');
     cache.db.close();
     // Only the API runs; fixtures supply all names, with no Keeta client involved.
+    const transferDb = new DatabaseSync(path.join(directory, 'keetascan.db'));
+    transferDb.prepare(`INSERT INTO transfers
+        (block_hash, operation_index, sender, recipient, token, amount, timestamp)
+        VALUES ('block', 0, 'a', 'b', 'token', '1', '2026-10-06')`).run();
+    transferDb.close();
     const child = spawn(process.execPath, ['indexer/server.js'], {
         env: { ...process.env, KEETAVIEW_DATA_DIR: directory, PORT: '31987', HOST: '127.0.0.1' },
         stdio: ['ignore', 'pipe', 'pipe']
@@ -96,6 +101,9 @@ test('transaction API searches and returns cached names without a network worker
         assert.equal(username.total, 1);
         assert.equal(username.operations[0].sender_username, 'alice$keeta.xyz');
         assert.equal(username.name_lookup, 'cached');
+        const activity = await (await fetch('http://127.0.0.1:31987/api/transfers?address=a')).json();
+        assert.equal(activity[0].sender_username, 'alice$keeta.xyz');
+        assert.equal(activity[0].recipient_name, 'Shared');
         const label = await (await fetch('http://127.0.0.1:31987/api/account-label?address=a')).json();
         assert.equal(label.username, 'alice$keeta.xyz');
         assert.equal(label.address, 'a');

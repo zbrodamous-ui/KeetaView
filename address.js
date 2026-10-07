@@ -326,9 +326,9 @@ if (transfers.length === 0) {
 
             <span>Transfer</span>
 
-            <span>${escapeKeetaHtml(shortSender)}</span>
+            <span title="${escapeKeetaHtml(sender)}">${escapeKeetaHtml(addressActivityLabel(transfer.sender_username, transfer.sender_name, shortSender))}</span>
 
-            <span>${escapeKeetaHtml(shortRecipient)}</span>
+            <span title="${escapeKeetaHtml(recipient)}">${escapeKeetaHtml(addressActivityLabel(transfer.recipient_username, transfer.recipient_name, shortRecipient))}</span>
 
             <span>
                 ${escapeKeetaHtml(tokenDisplay.amount)}
@@ -402,4 +402,9 @@ async function loadCachedAddressUsername(walletAddress) {
     } catch {
         element.textContent = "Cache unavailable";
     }
+}
+
+function addressActivityLabel(username, name, shortAddress) {
+    const label = username || name;
+    return label ? `${label} (${shortAddress})` : shortAddress;
 }

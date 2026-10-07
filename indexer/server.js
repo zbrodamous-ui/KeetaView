@@ -1589,7 +1589,7 @@ const server =
                 sendJson(
                     response,
                     200,
-                    transfers
+                    accountNames.decorate(transfers)
                 );
 
                 return;
