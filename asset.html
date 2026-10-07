@@ -100,21 +100,6 @@
             </div>
         </section>
 
-        <section id="assetHolders" class="asset-holders" hidden>
-            <div class="holder-heading">
-                <h2>Top observed KTA holders</h2>
-                <button id="refreshHolders" type="button">Refresh holders</button>
-            </div>
-            <p id="holderCoverage" aria-live="polite">Loading holder coverage…</p>
-            <p>Select a wallet to see only its KTA transfers. Transfers are marked Sent or Received; they are not automatically classified as buys or sells.</p>
-            <div class="holder-table-scroll">
-                <table class="holder-table">
-                    <thead><tr><th scope="col">Rank</th><th scope="col">Wallet</th><th scope="col">Cached balance</th><th scope="col">Last checked</th></tr></thead>
-                    <tbody id="assetHoldersList"></tbody>
-                </table>
-            </div>
-        </section>
-
         <section class="asset-transfers">
             <h2>Latest Indexed Transfers</h2>
 
@@ -139,7 +124,6 @@
 <script src="https://static.test.keeta.com/keetanet-browser.js"></script>
 <script src="shared.js"></script>
 <script src="background.js"></script>
-<script src="holder-ui.js"></script>
 <script src="asset.js"></script>
 </body>
 </html>

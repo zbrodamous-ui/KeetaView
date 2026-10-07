@@ -7493,22 +7493,3 @@ html[data-theme="soft"] .system-status strong {
         grid-template-columns: minmax(0, 1fr);
     }
 }
-.asset-holders, .wallet-activity-context {
-    margin-block: 24px;
-    padding: 22px;
-    border: 1px solid var(--border-color, #334155);
-    border-radius: 16px;
-}
-.asset-holders[hidden], .wallet-activity-context[hidden] { display: none; }
-.holder-heading { display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
-.holder-heading h2 { margin: 0; }
-.asset-holders p, .wallet-activity-context p { line-height: 1.6; overflow-wrap: anywhere; }
-.holder-table-scroll { overflow-x: auto; }
-.holder-table { width: 100%; border-collapse: collapse; }
-.holder-table th, .holder-table td { text-align: left; padding: 14px 10px; border-bottom: 1px solid var(--border-color, #334155); }
-.holder-table td:nth-child(3) { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.holder-table td:nth-child(2) { min-width: 180px; overflow-wrap: anywhere; }
-.holder-heading button { padding: 8px 12px; border-radius: 8px; cursor: pointer; }
-.wallet-transfer-direction { display: inline-block; margin-left: 8px; font-size: .8em; padding: 3px 7px; border: 1px solid currentColor; border-radius: 6px; }
-.wallet-transfer-direction--received { color: #36b985; }
-.wallet-transfer-direction--sent { color: #ed9273; }

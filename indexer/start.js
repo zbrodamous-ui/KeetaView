@@ -87,7 +87,6 @@ startService(
 );
 
 startService("Account names", ["indexer/account-name-worker.js"], { critical: false });
-startService("Holder balances", ["indexer/holder-worker.js"], { critical: false });
 
 process.on(
     "SIGINT",

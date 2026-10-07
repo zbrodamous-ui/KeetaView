@@ -58,8 +58,6 @@ async function loadAsset() {
     ).textContent =
         assetAddress;
 
-    loadKtaHolders(assetAddress);
-
     attachKeetaCopyButton(
         document.getElementById("assetAddress"),
         assetAddress,
