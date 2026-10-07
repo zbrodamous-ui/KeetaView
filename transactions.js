@@ -205,7 +205,7 @@ async function getTokenDisplay(tokenAddress, rawAmount) {
     };
 }
 
-function createAddressLink(address) {
+function createAddressLink(address, name) {
     if (!address) {
         const unavailable =
             document.createElement("span");
@@ -217,8 +217,8 @@ function createAddressLink(address) {
     const link = document.createElement("a");
     link.href =
         `address.html?address=${encodeURIComponent(address)}`;
-    link.textContent = shortValue(address);
-    link.title = address;
+    link.textContent = name ? `${name} (${shortValue(address)})` : shortValue(address);
+    link.title = name ? `Cached account name: ${name}\n${address}` : address;
     link.addEventListener(
         "click",
         (event) => event.stopPropagation()
@@ -296,7 +296,7 @@ function createOperationRow(operation) {
     sender.className =
         "transaction-directory-address";
     sender.appendChild(
-        createAddressLink(operation.sender)
+        createAddressLink(operation.sender, operation.sender_name)
     );
 
     const details = document.createElement("span");
@@ -305,7 +305,7 @@ function createOperationRow(operation) {
 
     if (operation.recipient) {
         details.appendChild(
-            createAddressLink(operation.recipient)
+            createAddressLink(operation.recipient, operation.recipient_name)
         );
     }
 
@@ -371,7 +371,7 @@ function renderCurrentPage() {
         empty.className = "transactions-empty";
         empty.textContent =
             transactionFilter.value.trim()
-                ? "No indexed operations match that exact search."
+                ? "No indexed operations match that exact search. Account names must already be cached."
                 : transactionScope.value === "anchors"
                     ? "No indexed Anchor operations are available yet."
                     : transactionScope.value === "transfers"
@@ -518,7 +518,7 @@ async function loadOperationsPage() {
 
         if (!operationsResponse.ok) {
             throw new Error(
-                "Unable to load indexed operations"
+                (await operationsResponse.json().catch(() => ({}))).error || "Unable to load indexed operations"
             );
         }
 
@@ -564,8 +564,11 @@ async function loadOperationsPage() {
         );
 
         loadedOperations = [];
-        transactionsPageList.innerHTML =
-            '<p class="transactions-empty">Unable to load operations. Make sure the KeetaView API server is running.</p>';
+        transactionsPageList.replaceChildren();
+        const message = document.createElement("p");
+        message.className = "transactions-empty";
+        message.textContent = error.message || "Unable to load operations.";
+        transactionsPageList.append(message);
         transactionResultCount.textContent =
             "Unavailable";
         pageNumber.textContent = "Page —";

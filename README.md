@@ -145,3 +145,26 @@ Before publishing a release:
 ## Project status
 
 KeetaView is under active development. Its local index can be incomplete and should not be treated as an authoritative network-wide record.
+
+### Cached account names
+
+`npm start` also starts the account-name worker. It reads indexed accounts and
+recent operations, and stores Keeta `info.name` in `account-names.db` inside
+`KEETAVIEW_DATA_DIR` (the same persistent volume as the chain database).
+Transaction APIs attach cached `sender_name` and `recipient_name`; rendering and
+search never trigger account-name network calls. Names are self-assigned labels,
+not verified identities. Addresses remain in links, displays and copy buttons.
+
+Transaction search accepts exact, case-insensitive cached account names, including
+all accounts sharing that name. More than 100 matching accounts requires an
+address search. Unknown names return no results until discovered; the worker does
+not crawl the entire network at startup. Existing address/hash/asset/type searches
+continue to work. Names can lag on-chain changes.
+
+The worker performs at most eight sequential lookups per minute by default,
+prioritizing recent activity while reserving slots for resumable older-account
+discovery and expired cache entries. Positive entries refresh after six hours;
+unnamed accounts after 24 hours. Transport failures retain the last good name and
+back off for one hour. Set `ACCOUNT_NAMES_ENABLED=false` to stop background
+lookups, or `ACCOUNT_NAME_BATCH_SIZE` (1–20) to change the batch cap. Persist the
+name database and its WAL files; do not commit them.

@@ -1,4 +1,5 @@
 import http from "node:http";
+import { openAccountNames, nameSearchCondition } from "./account-names.js";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
@@ -35,6 +36,8 @@ const apiActivityFile =
         dataDirectory,
         "api-activity"
     );
+
+const accountNames = openAccountNames(path.join(dataDirectory, "account-names.db"));
 
 let lastApiActivityWrite = 0;
 
@@ -1239,7 +1242,7 @@ const server =
                     response,
                     200,
                     {
-                        ...operation,
+                        ...accountNames.decorate([operation])[0],
                         anchor: anchorInspection.payload,
                         anchor_verification: {
                             status: anchorInspection.status,
@@ -1319,6 +1322,13 @@ const server =
                 }
 
                 if (searchQuery) {
+                    let nameMatch;
+                    try {
+                        nameMatch = nameSearchCondition(accountNames, searchQuery);
+                    } catch (error) {
+                        sendJson(response, 400, { error: error.message });
+                        return;
+                    }
                     conditions.push(`
                         (
                             operations.block_hash = ?
@@ -1326,6 +1336,7 @@ const server =
                             OR operations.recipient = ?
                             OR operations.token = ?
                             OR operations.operation_type = ? COLLATE NOCASE
+                            ${nameMatch.sql}
                         )
                     `);
                     parameters.push(
@@ -1333,7 +1344,8 @@ const server =
                         searchQuery,
                         searchQuery,
                         searchQuery,
-                        searchQuery
+                        searchQuery,
+                        ...nameMatch.parameters
                     );
                 }
 
@@ -1419,7 +1431,7 @@ const server =
                         offset
                     );
 
-                const operationsWithAnchorStatus = operations.map(
+                const operationsWithAnchorStatus = accountNames.decorate(operations).map(
                     (operation) => ({
                         ...operation,
                         is_anchor: Boolean(operation.anchor_signature_status)
