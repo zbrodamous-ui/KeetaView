@@ -41,6 +41,16 @@ if (["transfers", "anchors"].includes(
     transactionScope.value = initialParameters.get("view");
 }
 
+const focusedWallet = initialParameters.get("address") || "";
+const focusedToken = initialParameters.get("token") || "";
+if (focusedWallet) {
+    transactionScope.value = "transfers";
+    transactionScope.disabled = true;
+    const context = document.getElementById("walletActivityContext");
+    context.hidden = false;
+    document.getElementById("walletActivityDescription").textContent =
+        `Only ${focusedToken ? "the selected asset's " : ""}indexed transfers for ${focusedWallet}.`;
+}
 transactionFilter.value = initialParameters.get("q") || "";
 
 if (["verified", "unsigned", "invalid"].includes(
@@ -264,6 +274,13 @@ function createOperationRow(operation) {
         formatOperationType(operation.operation_type);
 
     type.appendChild(typeLabel);
+    if (focusedWallet) {
+        const direction = walletTransferDirection(operation, focusedWallet);
+        const badge = document.createElement("span");
+        badge.className = `wallet-transfer-direction wallet-transfer-direction--${direction.toLowerCase().replace(/ /g, "-")}`;
+        badge.textContent = direction;
+        type.append(badge);
+    }
 
     if (operation.is_anchor) {
         const anchorBadge =
@@ -490,6 +507,8 @@ async function loadOperationsPage() {
                 offset
             });
 
+        if (focusedWallet) operationParameters.set("address", focusedWallet);
+        if (focusedWallet && focusedToken) operationParameters.set("token", focusedToken);
         if (anchorsOnly) {
             operationParameters.set("anchors", "true");
 
@@ -689,3 +708,7 @@ nextPageButton.addEventListener(
 );
 
 loadOperationsPage();
+
+if (focusedWallet) window.setInterval(() => {
+    if (!document.hidden && !transactionFilter.hasAttribute("aria-busy") && currentPage === 1) loadOperationsPage();
+}, 60000);
