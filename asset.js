@@ -187,7 +187,8 @@ async function loadRecentTransfers(
                 {
                     headers: {
                         Accept: "application/json"
-                    }
+                    },
+                    signal: AbortSignal.timeout(15000)
                 }
             );
 
