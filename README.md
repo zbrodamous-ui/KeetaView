@@ -161,10 +161,34 @@ address search. Unknown names return no results until discovered; the worker doe
 not crawl the entire network at startup. Existing address/hash/asset/type searches
 continue to work. Names can lag on-chain changes.
 
-The worker performs at most eight sequential lookups per minute by default,
-prioritizing recent activity while reserving slots for resumable older-account
+The worker shares an eight-request budget per minute by default between account
+labels and registered usernames (four label lookups and two username lookups,
+with two provider requests per username). Hourly SDK service discovery is additional.
+All SDK fetches in the isolated worker have a 10-second timeout. It
+prioritizes recent activity while reserving slots for resumable older-account
 discovery and expired cache entries. Positive entries refresh after six hours;
 unnamed accounts after 24 hours. Transport failures retain the last good name and
 back off for one hour. Set `ACCOUNT_NAMES_ENABLED=false` to stop background
-lookups, or `ACCOUNT_NAME_BATCH_SIZE` (1–20) to change the batch cap. Persist the
+lookups, or `ACCOUNT_NAME_BATCH_SIZE` (3–20) to change the batch cap. Persist the
 name database and its WAL files; do not commit them.
+
+
+### Registered `$keeta.xyz` usernames
+
+The same worker discovers the mainnet `keeta.xyz` provider through the official
+Anchor SDK. It confirms both address-to-username and username-to-address mappings
+before caching a registered handle separately from the account's self-assigned
+`info.name`. Transaction responses include `sender_username` and
+`recipient_username`; displays prefer these handles, while retaining address
+links and copy values. Unresolved accounts keep their account label or address.
+
+Search the full handle, for example `xescure$keeta.xyz`. An uncached handle queues
+one deduplicated background lookup; the page asks you to retry in about a minute.
+There are at most 100 pending searches, with one reserved worker slot per cycle.
+Queue failures back off for an hour; missing or unconfirmed mappings are cached
+for 24 hours. Registered mappings refresh after six hours. Provider outages keep
+previous mappings and do not stop the API/indexer. Names may lag changes.
+
+Searches containing `$` use only registered mappings, never an `info.name` that
+resembles a registered handle. A confirmed transfer clears the old cached owner.
+No username provider requests run in transaction rendering or API handlers.

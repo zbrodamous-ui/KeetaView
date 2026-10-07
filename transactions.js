@@ -205,7 +205,8 @@ async function getTokenDisplay(tokenAddress, rawAmount) {
     };
 }
 
-function createAddressLink(address, name) {
+function createAddressLink(address, name, username) {
+    const label = username || name;
     if (!address) {
         const unavailable =
             document.createElement("span");
@@ -217,8 +218,8 @@ function createAddressLink(address, name) {
     const link = document.createElement("a");
     link.href =
         `address.html?address=${encodeURIComponent(address)}`;
-    link.textContent = name ? `${name} (${shortValue(address)})` : shortValue(address);
-    link.title = name ? `Cached account name: ${name}\n${address}` : address;
+    link.textContent = label ? `${label} (${shortValue(address)})` : shortValue(address);
+    link.title = label ? `Cached ${username ? "registered username" : "account name"}: ${label}\n${address}` : address;
     link.addEventListener(
         "click",
         (event) => event.stopPropagation()
@@ -296,7 +297,7 @@ function createOperationRow(operation) {
     sender.className =
         "transaction-directory-address";
     sender.appendChild(
-        createAddressLink(operation.sender, operation.sender_name)
+        createAddressLink(operation.sender, operation.sender_name, operation.sender_username)
     );
 
     const details = document.createElement("span");
@@ -305,7 +306,7 @@ function createOperationRow(operation) {
 
     if (operation.recipient) {
         details.appendChild(
-            createAddressLink(operation.recipient, operation.recipient_name)
+            createAddressLink(operation.recipient, operation.recipient_name, operation.recipient_username)
         );
     }
 
@@ -557,6 +558,15 @@ async function loadOperationsPage() {
             );
 
         renderCurrentPage();
+        if (!operations.length && operationPayload.name_lookup) {
+            const message = transactionsPageList.querySelector(".transactions-empty");
+            if (message) message.textContent = {
+                pending: "Username lookup queued. Try this search again in about a minute.",
+                not_found: "No matching username mapping was confirmed. Try a full account address.",
+                busy: "Username lookup queue is busy. Try again shortly.",
+                cached: "This username is cached, but no indexed operations match the current filters."
+            }[operationPayload.name_lookup];
+        }
     } catch (error) {
         console.error(
             "Error loading operations page:",
