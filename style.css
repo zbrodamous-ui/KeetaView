@@ -2852,16 +2852,16 @@ html[data-theme="clean"] .address-detail-shell #balancesList .operation-card {
 }
 
 .address-detail-shell .activity-table-header span {
-    color: #53647a;
+    color: var(--secondary-text);
     font-weight: 600;
 }
 
 .address-detail-shell #addressActivityList .activity-row span {
-    color: #273447;
+    color: var(--primary-text);
 }
 
 .address-detail-shell #addressActivityList .activity-row span:nth-child(2) {
-    color: #66768a;
+    color: var(--secondary-text);
 }
 
 .address-detail-shell #addressActivityList .activity-row a {
