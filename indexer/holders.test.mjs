@@ -42,6 +42,10 @@ test('candidate discovery and focused activity use existing indexes with no unre
         const discovery=db.prepare(`EXPLAIN QUERY PLAN SELECT id FROM transfers INDEXED BY transfers_by_token
             WHERE token = ? AND id > ? ORDER BY id LIMIT 1000`).all(KTA_TOKEN,0);
         assert.ok(discovery.every(row=>!row.detail.includes('SCAN transfers') && !row.detail.includes('TEMP B-TREE')));
+        const assetPlan=db.prepare(`EXPLAIN QUERY PLAN SELECT block_hash, sender, recipient, amount, timestamp
+            FROM transfers INDEXED BY transfers_by_token WHERE token = ? ORDER BY id DESC LIMIT 10`).all(KTA_TOKEN);
+        assert.ok(assetPlan.some(row=>row.detail.includes('transfers_by_token')));
+        assert.ok(assetPlan.every(row=>!row.detail.includes('SCAN transfers') && !row.detail.includes('TEMP B-TREE')));
         const wallet=walletOperationCondition('wallet');
         const plan=db.prepare(`EXPLAIN QUERY PLAN SELECT * FROM operations WHERE ${wallet.sql}
             AND token = ? ORDER BY timestamp DESC LIMIT 20`).all(...wallet.parameters,KTA_TOKEN);

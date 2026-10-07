@@ -1555,9 +1555,9 @@ const server =
                 token,
                 amount,
                 timestamp
-            FROM transfers
+            FROM transfers INDEXED BY transfers_by_token
             WHERE token = ?
-            ORDER BY timestamp DESC
+            ORDER BY id DESC
             LIMIT ?
         `).all(
                             token,
