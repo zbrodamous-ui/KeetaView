@@ -6,6 +6,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
 import { openAccountNames, nameSearchCondition } from './account-names.js';
+import { openHolders, KTA_TOKEN } from './holders.js';
 
  test('persistent names, negative cache, rename, removal and failed refresh', () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'keeta-names-'));
@@ -64,7 +65,22 @@ test('transaction API searches and returns cached names without a network worker
     insert.run(0, 'a', 'other');
     insert.run(1, 'other', 'b');
     insert.run(2, 'keeta_unknown', 'other');
+    insert.run(3, 'keeta_watched', 'other');
+    insert.run(4, 'other', 'keeta_watched');
+    insert.run(5, 'keeta_watched', 'keeta_watched');
+    for (const index of [3,4,5]) {
+        const token = index === 4 ? 'different_asset' : KTA_TOKEN;
+        db.prepare('UPDATE operations SET token = ? WHERE operation_index = ?').run(token,index);
+        const op = db.prepare('SELECT * FROM operations WHERE operation_index = ?').get(index);
+        db.prepare(`INSERT INTO transfers(block_hash,operation_index,sender,recipient,token,amount,timestamp)
+            VALUES ('block',?,?,?,?, '1', '2026-10-06')`).run(index,op.sender,op.recipient,token);
+    }
     db.close();
+    const holders = openHolders(path.join(directory, 'holders.db'));
+    holders.discover([{sender:'a',recipient:'keeta_watched',amount:'100'}]);
+    holders.saveBalance('a','1000000000000000000');
+    holders.saveBalance('keeta_watched','2000000000000000000');
+    holders.db.close();
     const cache = openAccountNames(path.join(directory, 'account-names.db'));
     cache.save('a', 'Shared');
     cache.save('b', 'Shared');
@@ -103,6 +119,17 @@ test('transaction API searches and returns cached names without a network worker
         assert.equal(address.total, 1);
         const missing = await (await fetch('http://127.0.0.1:31987/api/operations?q=missing')).json();
         assert.equal(missing.total, 0);
+        const leaders = await (await fetch('http://127.0.0.1:31987/api/holders?limit=2')).json();
+        assert.equal(leaders.coverage,'observed');
+        assert.equal(leaders.checked_wallets,2);
+        assert.equal(leaders.holders[0].address,'keeta_watched');
+        assert.equal(leaders.holders[1].username,'alice$keeta.xyz');
+        assert.equal((await fetch('http://127.0.0.1:31987/api/holders?token=unsupported')).status,400);
+        const focused = await (await fetch(`http://127.0.0.1:31987/api/operations?transfers=true&address=keeta_watched&token=${KTA_TOKEN}`)).json();
+        assert.equal(focused.total,2);
+        assert.equal(focused.operations.length,2);
+        assert.ok(focused.operations.every(op=>op.token===KTA_TOKEN && (op.sender==='keeta_watched'||op.recipient==='keeta_watched')));
+        assert.equal((await fetch(`http://127.0.0.1:31987/api/operations?token=${KTA_TOKEN}`)).status,400);
     } finally {
         child.kill();
         await new Promise(resolve => child.exitCode !== null ? resolve() : child.once('exit', resolve));

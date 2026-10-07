@@ -1,4 +1,5 @@
 import http from "node:http";
+import { openHolders, KTA_TOKEN, walletOperationCondition } from "./holders.js";
 import { openAccountNames } from "./account-names.js";
 import { transactionSearch } from "./transaction-search.js";
 import fs from "node:fs";
@@ -38,6 +39,7 @@ const apiActivityFile =
         "api-activity"
     );
 
+const holdersCache = openHolders(path.join(dataDirectory, "holders.db"));
 const accountNames = openAccountNames(path.join(dataDirectory, "account-names.db"));
 
 let lastApiActivityWrite = 0;
@@ -1311,10 +1313,19 @@ const server =
                 const parameters = [];
 
                 if (address) {
-                    conditions.push(
-                        "(operations.sender = ? OR operations.recipient = ?)"
-                    );
-                    parameters.push(address, address);
+                    const wallet = walletOperationCondition(address);
+                    conditions.push(wallet.sql);
+                    parameters.push(...wallet.parameters);
+                }
+                const tokenFilter = url.searchParams.get("token");
+                if (tokenFilter) {
+                    if (!address) {
+                        sendJson(response, 400, { error: "An account address is required for an asset activity filter." });
+                        return;
+                    }
+                    conditions.push("operations.token = ?");
+                    parameters.push(tokenFilter);
+                    if (transfersOnly) conditions.push("operations.operation_type IN ('SEND', 'RECEIVE')");
                 }
 
                 if (operationType) {
@@ -1730,6 +1741,22 @@ const server =
                 `).all(address, limit);
 
                 sendJson(response, 200, anchors);
+                return;
+            }
+
+            if (request.method === "GET" && url.pathname === "/api/holders") {
+                const token = url.searchParams.get("token") || KTA_TOKEN;
+                if (token !== KTA_TOKEN) {
+                    sendJson(response, 400, { error: "Holder rankings currently support KTA." });
+                    return;
+                }
+                const requested = Number(url.searchParams.get("limit"));
+                const payload = holdersCache.list(Number.isInteger(requested) && requested > 0 ? requested : 25);
+                const named = accountNames.decorate(payload.holders.map(holder => ({ sender: holder.address })));
+                payload.holders = payload.holders.map((holder, index) => ({ ...holder,
+                    username: named[index].sender_username, name: named[index].sender_name
+                }));
+                sendJson(response, 200, payload);
                 return;
             }
 
