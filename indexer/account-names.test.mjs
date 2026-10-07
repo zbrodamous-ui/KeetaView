@@ -63,7 +63,7 @@ test('transaction API searches and returns cached names without a network worker
         VALUES ('block', ?, 'SEND', ?, ?, '2026-10-06', '{}')`);
     insert.run(0, 'a', 'other');
     insert.run(1, 'other', 'b');
-    insert.run(2, 'unknown', 'other');
+    insert.run(2, 'keeta_unknown', 'other');
     db.close();
     const cache = openAccountNames(path.join(directory, 'account-names.db'));
     cache.save('a', 'Shared');
@@ -99,7 +99,7 @@ test('transaction API searches and returns cached names without a network worker
         const pending = await (await fetch('http://127.0.0.1:31987/api/operations?q=new_user%24keeta.xyz')).json();
         assert.equal(pending.name_lookup, 'pending');
         assert.equal(pending.total, 0);
-        const address = await (await fetch('http://127.0.0.1:31987/api/operations?q=unknown')).json();
+        const address = await (await fetch('http://127.0.0.1:31987/api/operations?q=keeta_unknown')).json();
         assert.equal(address.total, 1);
         const missing = await (await fetch('http://127.0.0.1:31987/api/operations?q=missing')).json();
         assert.equal(missing.total, 0);

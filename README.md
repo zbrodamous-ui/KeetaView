@@ -192,3 +192,10 @@ previous mappings and do not stop the API/indexer. Names may lag changes.
 Searches containing `$` use only registered mappings, never an `info.name` that
 resembles a registered handle. A confirmed transfer clears the old cached owner.
 No username provider requests run in transaction rendering or API handlers.
+
+
+Cached account-name and registered-username transaction searches select matching
+operation row IDs through the existing sender/recipient indexes. Unknown or
+partial names return an empty result without querying the chain database; a full
+uncached registered handle still queues its background lookup. These search paths
+avoid broad field comparisons and full-table/timestamp scans.
