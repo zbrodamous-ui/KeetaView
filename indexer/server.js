@@ -1,5 +1,6 @@
 import http from "node:http";
-import { openAccountNames, nameSearchCondition } from "./account-names.js";
+import { openAccountNames } from "./account-names.js";
+import { transactionSearch } from "./transaction-search.js";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
@@ -1322,31 +1323,22 @@ const server =
                 }
 
                 if (searchQuery) {
-                    let nameMatch;
+                    let search;
                     try {
-                        nameMatch = nameSearchCondition(accountNames, searchQuery);
+                        search = transactionSearch(accountNames, searchQuery);
                     } catch (error) {
                         sendJson(response, 400, { error: error.message });
                         return;
                     }
-                    conditions.push(`
-                        (
-                            operations.block_hash = ?
-                            OR operations.sender = ?
-                            OR operations.recipient = ?
-                            OR operations.token = ?
-                            OR operations.operation_type = ? COLLATE NOCASE
-                            ${nameMatch.sql}
-                        )
-                    `);
-                    parameters.push(
-                        searchQuery,
-                        searchQuery,
-                        searchQuery,
-                        searchQuery,
-                        searchQuery,
-                        ...nameMatch.parameters
-                    );
+                    if (search.empty) {
+                        sendJson(response, 200, {
+                            operations: [], total: 0,
+                            name_lookup: accountNames.usernameStatus(searchQuery)
+                        });
+                        return;
+                    }
+                    conditions.push(search.sql);
+                    parameters.push(...search.parameters);
                 }
 
                 const whereClause =
