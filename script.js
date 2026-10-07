@@ -110,15 +110,7 @@ async function runSearch() {
             return;
         }
 
-        searchInput.setCustomValidity(
-            "Enter a 64-character block hash, optionally followed by :operation."
-        );
-        searchInput.reportValidity();
-        searchInput.addEventListener(
-            "input",
-            () => searchInput.setCustomValidity(""),
-            { once: true }
-        );
+        window.location.assign(`transactions.html?q=${encodeURIComponent(searchText)}`);
         return;
     }
 
@@ -204,7 +196,7 @@ async function runSearch() {
 
     const routes = {
         transaction:
-            `transaction.html?search=${encodeURIComponent(
+            `transactions.html?q=${encodeURIComponent(
                 searchText
             )}`,
         address:

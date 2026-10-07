@@ -278,10 +278,13 @@ async function loadTransaction() {
             sender !== "Not available"
                 ? `<a href="address.html?address=${encodeURIComponent(
                     sender
-                )}">${formatKeetaIdentifier(
-                    sender
-                )}</a>`
+                )}">${escapeKeetaHtml(transaction.sender_name ? `${transaction.sender_name} (${formatKeetaIdentifier(sender)})` : formatKeetaIdentifier(sender))}</a>`
                 : "Not available";
+
+        if (from.querySelector("a")) {
+            from.querySelector("a").title = transaction.sender_name
+                ? `Cached account name: ${transaction.sender_name}\n${sender}` : sender;
+        }
 
         attachKeetaCopyButton(
             from,
@@ -293,10 +296,13 @@ async function loadTransaction() {
             recipient !== "Not available"
                 ? `<a href="address.html?address=${encodeURIComponent(
                     recipient
-                )}">${formatKeetaIdentifier(
-                    recipient
-                )}</a>`
+                )}">${escapeKeetaHtml(transaction.recipient_name ? `${transaction.recipient_name} (${formatKeetaIdentifier(recipient)})` : formatKeetaIdentifier(recipient))}</a>`
                 : "Not available";
+
+        if (to.querySelector("a")) {
+            to.querySelector("a").title = transaction.recipient_name
+                ? `Cached account name: ${transaction.recipient_name}\n${recipient}` : recipient;
+        }
 
         attachKeetaCopyButton(
             to,

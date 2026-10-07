@@ -3911,15 +3911,7 @@ function initializeDetailSearch() {
                 return;
             }
 
-            input.setCustomValidity(
-                "Enter a 64-character block hash, optionally followed by :operation."
-            );
-            input.reportValidity();
-            input.addEventListener(
-                "input",
-                () => input.setCustomValidity(""),
-                { once: true }
-            );
+            window.location.assign(`transactions.html?q=${encodeURIComponent(value)}`);
             return;
         }
 
@@ -3999,7 +3991,7 @@ function initializeDetailSearch() {
 
         const routes = {
             transaction:
-                `transaction.html?search=${encodeURIComponent(value)}`,
+                `transactions.html?q=${encodeURIComponent(value)}`,
             address:
                 `address.html?address=${encodeURIComponent(value)}`,
             block:

@@ -3,7 +3,7 @@ import { spawn } from "node:child_process";
 let shuttingDown = false;
 const children = [];
 
-function startService(name, args) {
+function startService(name, args, { critical = true } = {}) {
     console.log(
         `Starting KeetaView ${name}...`
     );
@@ -25,7 +25,7 @@ function startService(name, args) {
             error
         );
 
-        shutdown(1);
+        if (critical) shutdown(1);
     });
 
     child.on("exit", (code) => {
@@ -37,7 +37,7 @@ function startService(name, args) {
                 `${name} stopped unexpectedly with code ${code}.`
             );
 
-            shutdown(code || 1);
+            if (critical) shutdown(code || 1);
         }
     });
 
@@ -85,6 +85,8 @@ startService(
     "API",
     ["indexer/server.js"]
 );
+
+startService("Account names", ["indexer/account-name-worker.js"], { critical: false });
 
 process.on(
     "SIGINT",
