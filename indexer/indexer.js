@@ -355,10 +355,17 @@ function reportDatabaseStorage() {
     );
 }
 
-function checkpointDatabase() {
+function checkpointDatabase(mode = "PASSIVE") {
+    const checkpointMode =
+        mode === "TRUNCATE"
+            ? "TRUNCATE"
+            : "PASSIVE";
+
     try {
         const result = database
-            .prepare("PRAGMA wal_checkpoint(TRUNCATE)")
+            .prepare(
+                `PRAGMA wal_checkpoint(${checkpointMode})`
+            )
             .get();
 
         if (result.busy > 0) {
@@ -397,7 +404,7 @@ function shutdownIndexer(signal) {
         `Closing KeetaView indexer after ${signal}...`
     );
 
-    checkpointDatabase();
+    checkpointDatabase("TRUNCATE");
 
     try {
         database.close();
@@ -433,6 +440,14 @@ const insertBlock =
             operation_count
         )
         VALUES (?, ?, ?)
+    `);
+
+const selectBlock =
+    database.prepare(`
+        SELECT 1
+        FROM blocks
+        WHERE hash = ?
+        LIMIT 1
     `);
 
     const insertAccount =
@@ -557,6 +572,34 @@ const countBlocks =
 
 console.log("KeetaView Indexer starting...");
 
+const requestedHistoricalBatchDepth =
+    Number(
+        process.env
+            .HISTORICAL_BACKFILL_BATCH_SIZE ??
+        5
+    );
+
+const historicalBatchDepth =
+    Number.isInteger(requestedHistoricalBatchDepth) &&
+    requestedHistoricalBatchDepth >= 1 &&
+    requestedHistoricalBatchDepth <= 50
+        ? requestedHistoricalBatchDepth
+        : 5;
+
+function refreshDiscoveredTotals() {
+    state.accountsFound =
+        Number(
+            countAccounts.get().total
+        );
+
+    delete state.discoveredAccounts;
+
+    state.transfersFound =
+        Number(
+            countTransfers.get().total
+        );
+}
+
 async function testConnection() {
     const maximumAttempts = 5;
 
@@ -635,7 +678,7 @@ async function testHistoryFetch() {
             startBlocksHash:
             state.historyCursor ||
             undefined,
-            depth: 50
+            depth: historicalBatchDepth
         }
     );
     if (history.length === 0) {
@@ -663,6 +706,7 @@ for (const entry of history) {
     await processHistoryEntry(entry);
 }
 
+refreshDiscoveredTotals();
 saveState(state);
 
 checkpointDatabase();
@@ -724,6 +768,8 @@ async function refreshLatestHistory() {
     for (const entry of orderedHistory) {
         await processHistoryEntry(entry);
     }
+
+    refreshDiscoveredTotals();
 
     const newestEntry =
         orderedHistory[
@@ -968,12 +1014,13 @@ const newestBlock =
         .toISOString();
 
     for (const block of blocks) {
+        const blockHash =
+            block.hash.toString();
 
-           insertBlock.run(
-        block.hash.toString(),
-        timestamp,
-        block.operations.length
-    );
+        if (selectBlock.get(blockHash)) {
+            continue;
+        }
+
         const sender =
             block.account
                 ?.publicKeyString
@@ -1056,7 +1103,7 @@ storeAnchor(
     block.hash
 ) {
     insertTransfer.run(
-        block.hash.toString(),
+        blockHash,
         operationIndex,
         sender || null,
         recipient || null,
@@ -1069,19 +1116,13 @@ storeAnchor(
 
 }
         }
+
+        insertBlock.run(
+            blockHash,
+            timestamp,
+            block.operations.length
+        );
     }
-
-state.accountsFound =
-    Number(
-        countAccounts.get().total
-    );
-
-delete state.discoveredAccounts;
-
-state.transfersFound =
-    Number(
-        countTransfers.get().total
-    );
 
     if (newestBlock?.hash) {
     state.lastIndexedBlockHash =
