@@ -1733,6 +1733,18 @@ const server =
                 return;
             }
 
+            if (request.method === "GET" && url.pathname === "/api/account-label") {
+                const address = url.searchParams.get("address");
+                if (!address || address.length > 256) {
+                    sendJson(response, 400, { error: "An address is required." });
+                    return;
+                }
+                const cached = accountNames.decorate([{ sender: address }])[0];
+                sendJson(response, 200, { address, name: cached.sender_name,
+                    username: cached.sender_username });
+                return;
+            }
+
             if (
                 request.method === "GET" &&
                 url.pathname === "/api/accounts"

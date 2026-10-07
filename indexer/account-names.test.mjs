@@ -96,6 +96,12 @@ test('transaction API searches and returns cached names without a network worker
         assert.equal(username.total, 1);
         assert.equal(username.operations[0].sender_username, 'alice$keeta.xyz');
         assert.equal(username.name_lookup, 'cached');
+        const label = await (await fetch('http://127.0.0.1:31987/api/account-label?address=a')).json();
+        assert.equal(label.username, 'alice$keeta.xyz');
+        assert.equal(label.address, 'a');
+        const uncached = await (await fetch('http://127.0.0.1:31987/api/account-label?address=missing')).json();
+        assert.equal(uncached.username, null);
+        assert.equal((await fetch('http://127.0.0.1:31987/api/account-label')).status, 400);
         const pending = await (await fetch('http://127.0.0.1:31987/api/operations?q=new_user%24keeta.xyz')).json();
         assert.equal(pending.name_lookup, 'pending');
         assert.equal(pending.total, 0);
