@@ -767,9 +767,12 @@ function renderAnalyticsMarketChart(
         return;
     }
 
+    const chartWidth = Math.max(280, svg.clientWidth);
+    svg.setAttribute("viewBox", `0 0 ${chartWidth} 340`);
+
     const bounds = {
-        left: 42,
-        right: 930,
+        left: 16,
+        right: chartWidth - 70,
         top: 28,
         bottom: 278
     };
@@ -883,7 +886,7 @@ function renderAnalyticsMarketChart(
             createAnalyticsSvgElement(
                 "text",
                 {
-                    x: 990,
+                    x: chartWidth - 10,
                     y: y + 4,
                     "text-anchor": "end"
                 }
@@ -1070,7 +1073,7 @@ function renderAnalyticsMarketChart(
                         ) /
                         rectangle.width
                     ) *
-                    1000
+                    chartWidth
                 )
             );
 
@@ -1213,6 +1216,15 @@ function renderAnalyticsMarketChart(
         hideTooltip;
 
     hideTooltip();
+
+    // Reuse the loaded market data when the panel changes width.
+    svg.marketChartResizeObserver?.disconnect();
+    svg.marketChartResizeObserver = new ResizeObserver(() => {
+        if (svg.clientWidth > 0 && Math.abs(svg.clientWidth - chartWidth) > 1) {
+            renderAnalyticsMarketChart(market, directionColor, range);
+        }
+    });
+    svg.marketChartResizeObserver.observe(svg);
 }
 
 async function loadMarketAnalytics(
