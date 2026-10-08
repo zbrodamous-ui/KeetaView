@@ -3575,8 +3575,7 @@ html[data-theme="clean"] .asset-page-shell .asset-overview-card {
 #analyticsMarketChartSvg {
     display: block;
     width: 100%;
-    height: auto;
-    min-height: 330px;
+    height: 340px;
     cursor: default;
     touch-action: none;
 }

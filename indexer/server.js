@@ -1826,7 +1826,17 @@ const server =
                     sendJson(
                         response,
                         200,
-                        analyticsCache.data
+                        {
+                            ...analyticsCache.data,
+                            summary: {
+                                ...analyticsCache.data.summary,
+                                // Keep freshness accurate while heavy totals remain cached.
+                                latestTimestamp: database.prepare(`
+                                    SELECT timestamp FROM blocks
+                                    ORDER BY timestamp DESC LIMIT 1
+                                `).get()?.timestamp ?? null
+                            }
+                        }
                     );
 
                     if (
