@@ -41,19 +41,30 @@ const apiActivityFile =
 const accountNames = openAccountNames(path.join(dataDirectory, "account-names.db"));
 
 let lastApiActivityWrite = 0;
+const activityRoutes = new Map();
+const diagnosticRoutes = new Set([
+    "/api/status", "/api/market", "/api/analytics", "/api/blocks",
+    "/api/accounts", "/api/transfers", "/api/operations", "/api/assets",
+    "/api/transaction", "/api/account-label", "/api/anchors", "/api/anchors/search"
+]);
 
-function markApiActivity() {
+function markApiActivity(pathname) {
     const now = Date.now();
+    // Record only known route names, never query strings, addresses or IPs.
+    const route = diagnosticRoutes.has(pathname) ? pathname : "/api/other";
+    activityRoutes.set(route, (activityRoutes.get(route) || 0) + 1);
 
     if (now - lastApiActivityWrite < 5000) {
         return;
     }
 
     lastApiActivityWrite = now;
+    const routes = Object.fromEntries(activityRoutes);
+    activityRoutes.clear();
 
     fs.promises.writeFile(
         apiActivityFile,
-        String(now)
+        JSON.stringify({ timestamp: now, routes })
     ).catch((error) => {
         console.warn(
             "Could not record API activity:",
@@ -713,7 +724,7 @@ const server =
                 url.pathname.startsWith("/api/") &&
                 !url.pathname.startsWith("/api/traffic/")
             ) {
-                markApiActivity();
+                markApiActivity(url.pathname);
             }
 
             if (

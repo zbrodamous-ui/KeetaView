@@ -1595,6 +1595,18 @@ if (watchMode) {
                 console.log(
                     `Historical backfill deferred until the public API has been idle for ${backfillIdleSeconds} seconds.`
                 );
+                try {
+                    const marker = JSON.parse(fs.readFileSync(apiActivityFile, "utf8"));
+                    if (marker && typeof marker === "object" && marker.routes) {
+                        console.log("Recent API activity delaying backfill:", {
+                            ageSeconds: Math.max(0, Math.round((Date.now() - marker.timestamp) / 1000)),
+                            routes: marker.routes
+                        });
+                    }
+                } catch {
+                    // Older deployments used a timestamp-only marker.
+                    // Diagnostics must never interrupt the indexing loop.
+                }
 
                 continue;
             }

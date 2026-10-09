@@ -101,6 +101,9 @@ test('transaction API searches and returns cached names without a network worker
         const payload = await (await fetch('http://127.0.0.1:31987/api/operations?q=shared')).json();
         await new Promise(resolve => setTimeout(resolve, 50));
         assert.equal(fs.existsSync(path.join(directory, 'api-activity')), true);
+        const activityMarker = JSON.parse(fs.readFileSync(path.join(directory, 'api-activity'), 'utf8'));
+        assert.equal(typeof activityMarker.timestamp, 'number');
+        assert.deepEqual(activityMarker.routes, { '/api/operations': 1 });
         assert.equal(payload.total, 2);
         assert.equal(payload.operations.length, 2);
         assert.equal(payload.operations.find(op => op.sender === 'a').sender_name, 'Shared');
