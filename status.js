@@ -542,4 +542,5 @@ async function loadStatus() {
 refreshStatusButton.addEventListener("click", loadStatus);
 
 loadStatus();
-setInterval(loadStatus, 60000);
+// Keep subsequent checks manual so an open Status tab allows the
+// historical indexer to reach its required API quiet period.
