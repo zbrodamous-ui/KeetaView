@@ -204,16 +204,35 @@ function renderBackfillMonitor(backfill) {
             ? remainingBlocks / blocksPerHour
             : null;
 
+    const lastSuccess = Date.parse(backfill.lastSuccessAt);
+    const lastAttempt = Date.parse(backfill.lastAttemptAt);
+    const lastDeferred = Date.parse(backfill.lastDeferredAt);
+    const latestAttemptResult = Math.max(
+        lastAttempt || 0,
+        lastSuccess || 0,
+        Date.parse(backfill.lastFailureAt) || 0
+    );
+    const deferred = Number.isFinite(lastDeferred) &&
+        lastDeferred > latestAttemptResult;
+    const stale = !Number.isFinite(lastSuccess) ||
+        Date.now() - lastSuccess >
+            Math.max(15, Number(backfill.intervalMinutes) * 3 || 30) * 60_000;
+    const waiting = enabled && !complete && (deferred || stale);
+
     backfillFields.state.textContent = complete
         ? "Complete"
-        : enabled
-            ? `Running every ${formatNumber(backfill.intervalMinutes)} min`
-            : "Paused";
+        : !enabled
+            ? "Paused"
+            : deferred
+                ? "Waiting for quiet API"
+                : stale
+                    ? "No recent completed batch"
+                    : `Scheduled every ${formatNumber(backfill.intervalMinutes)} min`;
     backfillFields.state.dataset.state = complete
         ? "complete"
-        : enabled
-            ? "running"
-            : "paused";
+        : !enabled || waiting
+            ? "paused"
+            : "running";
     backfillFields.lastSuccess.textContent = backfill.lastSuccessAt
         ? timeAgo(backfill.lastSuccessAt)
         : "No completed batch yet";
@@ -226,7 +245,9 @@ function renderBackfillMonitor(backfill) {
     backfillFields.remaining.textContent = remainingBlocks === null
         ? "Waiting for network head"
         : `${formatNumber(remainingBlocks)} blocks`;
-    backfillFields.eta.textContent = remainingHours === null
+    backfillFields.eta.textContent = waiting || !enabled
+        ? "Unavailable while paused"
+        : remainingHours === null
         ? "Calculating"
         : formatKeetaDate(
             new Date(

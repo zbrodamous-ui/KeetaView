@@ -707,7 +707,12 @@ const server =
                     "http://127.0.0.1"
                 );
 
-            if (url.pathname.startsWith("/api/")) {
+            // Traffic telemetry writes to its own database; browser heartbeats
+            // must not keep chain backfill permanently waiting for API idle.
+            if (
+                url.pathname.startsWith("/api/") &&
+                !url.pathname.startsWith("/api/traffic/")
+            ) {
                 markApiActivity();
             }
 

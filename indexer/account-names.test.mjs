@@ -88,7 +88,19 @@ test('transaction API searches and returns cached names without a network worker
             });
             child.on('exit', code => { clearTimeout(timer); reject(new Error(`API exited ${code}`)); });
         });
+        // A visible browser sends these every 30 seconds. They must not
+        // reset the chain indexer's idle timer, but explorer reads still must.
+        for (const type of ['pageview', 'heartbeat']) {
+            const response = await fetch('http://127.0.0.1:31987/api/traffic/event', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ visitorId: '12345678-1234-4123-8123-123456789abc', type, path: '/' })
+            });
+            assert.equal(response.status, 204);
+        }
+        assert.equal(fs.existsSync(path.join(directory, 'api-activity')), false);
         const payload = await (await fetch('http://127.0.0.1:31987/api/operations?q=shared')).json();
+        await new Promise(resolve => setTimeout(resolve, 50));
+        assert.equal(fs.existsSync(path.join(directory, 'api-activity')), true);
         assert.equal(payload.total, 2);
         assert.equal(payload.operations.length, 2);
         assert.equal(payload.operations.find(op => op.sender === 'a').sender_name, 'Shared');
