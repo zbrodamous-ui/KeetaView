@@ -1,4 +1,5 @@
 import http from "node:http";
+import { openDeveloperKeys, developerResponse } from "./developer-api.js";
 import { openAccountNames } from "./account-names.js";
 import { transactionSearch } from "./transaction-search.js";
 import fs from "node:fs";
@@ -39,10 +40,12 @@ const apiActivityFile =
     );
 
 const accountNames = openAccountNames(path.join(dataDirectory, "account-names.db"));
+const developerKeys = openDeveloperKeys(path.join(dataDirectory, "developer-api.db"));
 
 let lastApiActivityWrite = 0;
 const activityRoutes = new Map();
 const diagnosticRoutes = new Set([
+    "/api/v1/status", "/api/v1/block", "/api/v1/transfers",
     "/api/status", "/api/market", "/api/analytics", "/api/blocks",
     "/api/accounts", "/api/transfers", "/api/operations", "/api/assets",
     "/api/transaction", "/api/account-label", "/api/anchors", "/api/anchors/search"
@@ -720,6 +723,34 @@ const server =
 
             // Telemetry uses its own database and market data uses an external
             // feed. Neither should reset the chain indexer's quiet period.
+            if (url.pathname.startsWith("/api/v1/")) {
+                if (request.method !== "GET") {
+                    response.setHeader("Allow", "GET");
+                    sendJson(response, 405, { error: "GET required." });
+                    return;
+                }
+                try {
+                    const usage = developerKeys.consume(request.headers.authorization?.startsWith("Bearer ") ? request.headers.authorization.slice(7) : null);
+                    if (usage.status !== 200) {
+                        if (usage.retry) response.setHeader("Retry-After", String(usage.retry));
+                        sendJson(response, usage.status, { error: usage.status === 401 ? "Valid bearer API key required." : "Beta request quota exceeded." });
+                        return;
+                    }
+                    response.setHeader("X-RateLimit-Remaining-Day", String(usage.remainingToday));
+                    response.setHeader("X-RateLimit-Remaining-Minute", String(usage.remainingMinute));
+                    if (!["/api/v1/status", "/api/v1/usage", "/api/v1/block", "/api/v1/transfers"].includes(url.pathname)) {
+                        sendJson(response, 404, { error: "Unknown developer endpoint." });
+                        return;
+                    }
+                    if (url.pathname !== "/api/v1/usage") markApiActivity(url.pathname);
+                    const result = developerResponse(url, database, readIndexerState(), usage);
+                    sendJson(response, result.status || 200, result);
+                } catch (error) {
+                    console.error("Developer API request failed:", error.message);
+                    sendJson(response, 503, { error: "Developer API temporarily unavailable." });
+                }
+                return;
+            }
             if (
                 url.pathname.startsWith("/api/") &&
                 !url.pathname.startsWith("/api/traffic/") &&

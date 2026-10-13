@@ -1,0 +1,31 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { DatabaseSync } from 'node:sqlite';
+import { openDeveloperKeys, developerResponse } from './developer-api.js';
+test('hashed keys enforce quotas, UTC reset, revocation and independent usage',()=>{
+ const keys=openDeveloperKeys(':memory:');
+ const a=keys.create('alpha'), b=keys.create('beta'), now=Date.parse('2026-10-13T23:00:00Z');
+ assert.equal(keys.consume('bad',now).status,401);
+ assert.equal(JSON.stringify(keys.list()).includes(a.key),false);
+ for(let i=0;i<30;i++) assert.equal(keys.consume(a.key,now).status,200);
+ assert.equal(keys.consume(a.key,now).status,429);
+ assert.equal(keys.consume(b.key,now).requestsToday,1);
+ assert.equal(keys.consume(a.key,now+60000).requestsToday,31);
+ for(let i=31;i<1000;i++) assert.equal(keys.consume(a.key,now+Math.floor(i/29)*60000).status,200);
+ assert.equal(keys.consume(a.key,now+3500000).status,429);
+ assert.equal(keys.consume(a.key,Date.parse('2026-10-14T00:00:00Z')).requestsToday,1);
+ keys.revoke(a.id); assert.equal(keys.consume(a.key).status,401); keys.close();
+});
+test('bounded token cursor pages retain raw amounts and disclose incomplete coverage',()=>{
+ const db=new DatabaseSync(':memory:');
+ db.exec('CREATE TABLE transfers(id INTEGER PRIMARY KEY,block_hash TEXT,operation_index INTEGER,sender TEXT,recipient TEXT,token TEXT,amount TEXT,timestamp TEXT); CREATE INDEX transfers_by_token ON transfers(token); CREATE TABLE blocks(hash TEXT,timestamp TEXT,operation_count INTEGER);');
+ const token='keeta_'+'a'.repeat(40);
+ const stmt=db.prepare('INSERT INTO transfers VALUES(?,?,?,?,?,?,?,?)');
+ for(let id=1;id<=3;id++)stmt.run(id,'a'.repeat(64),id,'s','r',token,'1','2026-10-13T00:00:00Z');
+ let u=new URL('http://test/api/v1/transfers?token='+token+'&limit=2');
+ let result=developerResponse(u,db,{},{}); assert.deepEqual(result.data.map(r=>r.id),[3,2]);assert.equal(result.data[0].amount,'1');assert.equal(result.nextBefore,2);
+ u.searchParams.set('before','2');result=developerResponse(u,db,{},{});assert.deepEqual(result.data.map(r=>r.id),[1]);assert.equal(result.nextBefore,null);
+ u.searchParams.set('limit','101');assert.equal(developerResponse(u,db,{},{}).status,400);
+ assert.equal(developerResponse(new URL('http://test/api/v1/block?hash=bad'),db,{},{}).status,400);
+ assert.equal(developerResponse(new URL('http://test/api/v1/status'),db,{},{}).data.historicalComplete,false);db.close();
+});
