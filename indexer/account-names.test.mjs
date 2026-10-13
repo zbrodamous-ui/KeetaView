@@ -98,6 +98,21 @@ test('transaction API searches and returns cached names without a network worker
             assert.equal(response.status, 204);
         }
         assert.equal(fs.existsSync(path.join(directory, 'api-activity')), false);
+        const { openDeveloperKeys } = await import('./developer-api.js');
+        const developerKeys = openDeveloperKeys(path.join(directory, 'developer-api.db'));
+        const issued = developerKeys.create('integration tester');
+        assert.equal((await fetch('http://127.0.0.1:31987/api/v1/usage')).status, 401);
+        const betaUsage = await fetch('http://127.0.0.1:31987/api/v1/usage', {
+            headers: { Authorization: `Bearer ${issued.key}` }
+        });
+        assert.equal(betaUsage.status, 200);
+        assert.equal((await betaUsage.json()).data.requestsToday, 1);
+        developerKeys.revoke(issued.id);
+        assert.equal((await fetch('http://127.0.0.1:31987/api/v1/usage', {
+            headers: { Authorization: `Bearer ${issued.key}` }
+        })).status, 401);
+        developerKeys.close();
+        assert.equal(fs.existsSync(path.join(directory, 'api-activity')), false);
         // Exercise the route-level activity gate without calling the external
         // market provider in this local integration test.
         await fetch('http://127.0.0.1:31987/api/market?range=1d', { method: 'HEAD' });
