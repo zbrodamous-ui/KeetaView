@@ -98,6 +98,11 @@ test('transaction API searches and returns cached names without a network worker
             assert.equal(response.status, 204);
         }
         assert.equal(fs.existsSync(path.join(directory, 'api-activity')), false);
+        // Exercise the route-level activity gate without calling the external
+        // market provider in this local integration test.
+        await fetch('http://127.0.0.1:31987/api/market?range=1d', { method: 'HEAD' });
+        await new Promise(resolve => setTimeout(resolve, 50));
+        assert.equal(fs.existsSync(path.join(directory, 'api-activity')), false);
         const payload = await (await fetch('http://127.0.0.1:31987/api/operations?q=shared')).json();
         await new Promise(resolve => setTimeout(resolve, 50));
         assert.equal(fs.existsSync(path.join(directory, 'api-activity')), true);

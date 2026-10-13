@@ -718,11 +718,12 @@ const server =
                     "http://127.0.0.1"
                 );
 
-            // Traffic telemetry writes to its own database; browser heartbeats
-            // must not keep chain backfill permanently waiting for API idle.
+            // Telemetry uses its own database and market data uses an external
+            // feed. Neither should reset the chain indexer's quiet period.
             if (
                 url.pathname.startsWith("/api/") &&
-                !url.pathname.startsWith("/api/traffic/")
+                !url.pathname.startsWith("/api/traffic/") &&
+                url.pathname !== "/api/market"
             ) {
                 markApiActivity(url.pathname);
             }
