@@ -23,6 +23,9 @@ const transactionResultCount =
 const transactionsListTitle =
     document.getElementById("transactionsListTitle");
 
+const hideTinyKta = document.getElementById("hideTinyKta");
+const operationFilterCount = document.getElementById("operationFilterCount");
+let filteredPagination = false;
 const rowsPerPage = 20;
 const tokenInfoCache = new Map();
 
@@ -42,6 +45,12 @@ if (["transfers", "anchors"].includes(
 }
 
 transactionFilter.value = initialParameters.get("q") || "";
+hideTinyKta.checked = initialParameters.get("hideTinyKta") === "true";
+operationFilterCount.textContent = hideTinyKta.checked ? "(1)" : "";
+hideTinyKta.addEventListener("change", () => {
+    operationFilterCount.textContent = hideTinyKta.checked ? "(1)" : "";
+    submitSearch();
+});
 
 if (["verified", "unsigned", "invalid"].includes(
     initialParameters.get("anchorStatus")
@@ -88,6 +97,8 @@ function updatePageUrl() {
         pageUrl.searchParams.delete("q");
     }
 
+    if (hideTinyKta.checked) pageUrl.searchParams.set("hideTinyKta", "true");
+    else pageUrl.searchParams.delete("hideTinyKta");
     window.history.replaceState({}, "", pageUrl);
 }
 
@@ -403,7 +414,9 @@ function renderCurrentPage() {
         );
 
     transactionResultCount.textContent =
-        `${firstResult.toLocaleString()}–${lastResult.toLocaleString()} of ${totalOperations.toLocaleString()}`;
+        filteredPagination
+            ? `${operations.length ? firstResult.toLocaleString() : "0"}–${lastResult.toLocaleString()} · Filtered results`
+            : `${firstResult.toLocaleString()}–${lastResult.toLocaleString()} of ${totalOperations.toLocaleString()}`;
 
     transactionsListTitle.textContent =
         transactionScope.value === "anchors"
@@ -413,7 +426,7 @@ function renderCurrentPage() {
                 : "Recorded Operations";
 
     pageNumber.textContent =
-        `Page ${currentPage} of ${totalPages}`;
+        filteredPagination ? `Page ${currentPage}` : `Page ${currentPage} of ${totalPages}`;
 
     previousPageButton.disabled =
         currentPage === 1;
@@ -512,6 +525,8 @@ async function loadOperationsPage() {
             operationParameters.set("q", searchQuery);
         }
 
+        if (hideTinyKta.checked) operationParameters.set("hideTinyKta", "true");
+
         const operationsResponse =
             await fetchKeetaView(
                 `/api/operations?${operationParameters}`
@@ -531,7 +546,10 @@ async function loadOperationsPage() {
                 ? operationPayload
                 : operationPayload.operations;
 
-        totalOperations =
+        filteredPagination = operationPayload.total === null;
+        totalOperations = filteredPagination
+            ? offset + operations.length + (operationPayload.hasMore ? 1 : 0)
+            :
             Array.isArray(operationPayload)
                 ? operationPayload.length
                 : Number(operationPayload.total || 0);

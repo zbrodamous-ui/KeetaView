@@ -1355,8 +1355,21 @@ const server =
                 const transfersOnly =
                     url.searchParams.get("transfers") === "true";
 
+                const hideTinyKta = url.searchParams.get("hideTinyKta") === "true";
                 const conditions = [];
                 const parameters = [];
+                if (hideTinyKta) {
+                    // Decimal integer strings: compare by length, never cast to float.
+                    // Preserve missing/malformed amounts and all non-KTA/non-SEND actions.
+                    conditions.push(`NOT (
+                        COALESCE(UPPER(operations.operation_type), '') = 'SEND'
+                        AND COALESCE(operations.token, '') = ?
+                        AND COALESCE(operations.amount, '') <> ''
+                        AND operations.amount NOT GLOB '*[^0-9]*'
+                        AND LENGTH(LTRIM(operations.amount, '0')) < 15
+                    )`);
+                    parameters.push('keeta_anqdilpazdekdu4acw65fj7smltcp26wbrildkqtszqvverljpwpezmd44ssg');
+                }
 
                 if (address) {
                     conditions.push(
@@ -1467,11 +1480,11 @@ const server =
                     `).all(
                         ...anchorParameters,
                         ...parameters,
-                        limit,
+                        hideTinyKta ? limit + 1 : limit,
                         offset
                     );
 
-                const operationsWithAnchorStatus = accountNames.decorate(operations).map(
+                const operationsWithAnchorStatus = accountNames.decorate(hideTinyKta ? operations.slice(0, limit) : operations).map(
                     (operation) => ({
                         ...operation,
                         is_anchor: Boolean(operation.anchor_signature_status)
@@ -1480,7 +1493,10 @@ const server =
 
                 let operationTotal;
 
-                if (!anchorsOnly && conditions.length === 0) {
+                if (hideTinyKta) {
+                    // Avoid counting millions of rows for this optional filter.
+                    operationTotal = null;
+                } else if (!anchorsOnly && conditions.length === 0) {
                     if (transfersOnly) {
                         const savedTransfers = Number(
                             readIndexerState()?.transfersFound
@@ -1532,7 +1548,8 @@ const server =
                             operationsWithAnchorStatus,
                         name_lookup: accountNames.usernameStatus(searchQuery),
                         total:
-                            Number(operationTotal || 0),
+                            operationTotal === null ? null : Number(operationTotal || 0),
+                        ...(hideTinyKta ? { hasMore: operations.length > limit } : {}),
                         ...(anchorCounts
                             ? {
                                 anchorCounts: {
