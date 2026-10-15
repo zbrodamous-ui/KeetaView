@@ -7492,3 +7492,9 @@ html[data-theme="soft"] .system-status strong {
         grid-template-columns: minmax(0, 1fr);
     }
 }
+.operation-filter-menu { grid-column: 1 / -1; position: relative; color: var(--text-color, #eee); }
+.operation-filter-menu summary { cursor: pointer; border: 1px solid var(--border-color, #333); border-radius: 10px; padding: 12px 16px; width: fit-content; font-weight: 600; }
+.operation-filter-menu[open] { padding: 12px; border: 1px solid var(--border-color, #333); border-radius: 12px; }
+.operation-filter-menu label { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
+.operation-filter-menu input { width: 18px; height: 18px; accent-color: #29a4ff; }
+.operation-filter-menu p { color: var(--secondary-text); font-size: .8rem; line-height: 1.5; }

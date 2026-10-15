@@ -152,6 +152,28 @@ test('transaction API searches and returns cached names without a network worker
         assert.equal(address.total, 1);
         const missing = await (await fetch('http://127.0.0.1:31987/api/operations?q=missing')).json();
         assert.equal(missing.total, 0);
+        const fixtures = new DatabaseSync(path.join(directory, 'keetascan.db'));
+        const kta = 'keeta_anqdilpazdekdu4acw65fj7smltcp26wbrildkqtszqvverljpwpezmd44ssg';
+        const add = fixtures.prepare(`INSERT INTO operations
+            (block_hash, operation_index, operation_type, token, amount, timestamp, details_json, sender)
+            VALUES ('filter-test', ?, ?, ?, ?, '2026-10-15', '{}', 'keeta_filter_test')`);
+        for (const [i, type, token, amount] of [
+            [0, 'SEND', kta, '0'], [1, 'SEND', kta, '1'],
+            [2, 'SEND', kta, '00099999999999999'],
+            [3, 'SEND', kta, '100000000000000'],
+            [4, 'SEND', 'other-token', '1'], [5, 'SET_INFO', kta, '0'],
+            [6, 'SEND', kta, null], [7, 'SEND', kta, 'unknown']
+        ]) add.run(i, type, token, amount);
+        fixtures.close();
+        const filtered = await (await fetch('http://127.0.0.1:31987/api/operations?hideTinyKta=true&q=keeta_filter_test&limit=2')).json();
+        assert.deepEqual(filtered.operations.map(x => x.operation_index), [3, 4]);
+        assert.equal(filtered.total, null);
+        assert.equal(filtered.hasMore, true);
+        const filteredNext = await (await fetch('http://127.0.0.1:31987/api/operations?hideTinyKta=true&q=keeta_filter_test&limit=2&offset=4')).json();
+        assert.deepEqual(filteredNext.operations.map(x => x.operation_index), [7]);
+        assert.equal(filteredNext.hasMore, false);
+        const unfiltered = await (await fetch('http://127.0.0.1:31987/api/operations?q=keeta_filter_test')).json();
+        assert.equal(unfiltered.operations.length, 8);
     } finally {
         child.kill();
         await new Promise(resolve => child.exitCode !== null ? resolve() : child.once('exit', resolve));
