@@ -14,7 +14,8 @@ function link(text, page, params) {
     const a=document.createElement('a');a.textContent=text;
     a.href=`https://keetaview.com/${page}?${new URLSearchParams(params)}`;a.target='_blank';a.rel='noopener noreferrer';return a;
 }
-const short = value => value.length > 24 ? `${value.slice(0,14)}…${value.slice(-7)}` : value;
+const present = value => typeof value === 'string' && value.trim().length > 0;
+const short = value => !present(value) ? 'Unknown' : value.length > 24 ? `${value.slice(0,14)}…${value.slice(-7)}` : value;
 async function load(reset) {
     if (busy) return;
     if (reset && !/^keeta_[a-z2-7]{20,100}$/.test($('token').value.trim())) { $('message').textContent='Enter a full token address.';return; }
@@ -27,13 +28,14 @@ async function load(reset) {
         if (!Array.isArray(j.data)) throw new Error('Unexpected API response.');
         if(reset){token=selected;total=0;seen.clear();$('rows').replaceChildren();}
         for(const row of j.data){
-            const identity=`${row.block_hash}:${row.operation_index}`;if(seen.has(identity))continue;seen.add(identity);
+            const hasOperation = present(row.block_hash) && Number.isInteger(row.operation_index) && row.operation_index >= 0;
+            const identity=hasOperation ? `${row.block_hash}:${row.operation_index}` : `index:${row.id}`;if(seen.has(identity))continue;
             const tr=document.createElement('tr');
             const time=document.createElement('td');time.textContent=row.timestamp || 'Unknown';tr.append(time);
-            for(const key of ['sender','recipient']){const td=document.createElement('td');td.append(link(short(row[key]),'address.html',{address:row[key]}));tr.append(td);}
-            const amount=document.createElement('td');amount.className='amount';amount.textContent=row.amount;tr.append(amount);
-            const operation=document.createElement('td');operation.append(link(`${short(row.block_hash)} · #${row.operation_index}`,'transaction.html',{block:row.block_hash,operation:row.operation_index}));tr.append(operation);
-            $('rows').append(tr);total++;
+            for(const key of ['sender','recipient']){const td=document.createElement('td');if(present(row[key])) td.append(link(short(row[key]),'address.html',{address:row[key]})); else td.textContent='Unknown';tr.append(td);}
+            const amount=document.createElement('td');amount.className='amount';amount.textContent=row.amount ?? 'Unknown';tr.append(amount);
+            const operation=document.createElement('td');if(hasOperation) operation.append(link(`${short(row.block_hash)} · #${row.operation_index}`,'transaction.html',{block:row.block_hash,operation:row.operation_index})); else operation.textContent='Unknown';tr.append(operation);
+            $('rows').append(tr);seen.add(identity);total++;
         }
         cursor=j.nextBefore ?? null;
         $('count').textContent=`${total} transfers shown`;
