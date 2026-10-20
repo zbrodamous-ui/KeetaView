@@ -1103,9 +1103,13 @@ storeAnchor(
                 );
             }
 
-           if (
+if (
+    getOperationType(operation) === "SEND" &&
+    sender &&
+    recipient &&
     token &&
-    operation.amount &&
+    operation.amount !== undefined &&
+    operation.amount !== null &&
     block.hash
 ) {
     insertTransfer.run(
