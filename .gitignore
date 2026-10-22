@@ -9,3 +9,5 @@ indexer/*.db
 *.log
 indexer/*.db-*
 indexer/database-reset-marker.txt
+/indexer/network-analytics-cache.json
+/indexer/network-analytics-cache.json.*.tmp

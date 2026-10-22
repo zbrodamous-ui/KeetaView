@@ -1492,18 +1492,28 @@ function showAnalyticsError(error) {
         error
     );
 
-    document.getElementById(
-        "networkAnalytics"
-    ).innerHTML = `
-        <article class="analytics-dashboard-card analytics-error-card">
-            <h2>Analytics API unavailable</h2>
-            <p>
-                Start the KeetaView API with
-                <code>node indexer/server.js</code>,
-                then refresh this page.
-            </p>
-        </article>
-    `;
+    const container = document.getElementById("networkAnalytics");
+    let notice = document.getElementById("analyticsLoadError");
+    if (!notice) {
+        notice = document.createElement("article");
+        notice.id = "analyticsLoadError";
+        notice.className = "analytics-dashboard-card analytics-error-card";
+        notice.setAttribute("role", "alert");
+        const heading = document.createElement("h2");
+        heading.textContent = "Network analytics temporarily unavailable";
+        const message = document.createElement("p");
+        message.textContent = "The analytics snapshot may still be preparing. Wait a moment, then retry. You can retry or return to another explorer page.";
+        const retry = document.createElement("button");
+        retry.type = "button";
+        retry.textContent = "Retry network analytics";
+        retry.addEventListener("click", async () => {
+            retry.disabled = true;
+            try { await loadAnalytics(); }
+            finally { retry.disabled = false; }
+        });
+        notice.append(heading, message, retry);
+        container.prepend(notice);
+    }
 }
 
 async function loadAnalytics() {
@@ -1526,6 +1536,14 @@ async function loadAnalytics() {
         const analytics =
             await response.json();
 
+        document.getElementById("analyticsLoadError")?.remove();
+        const cacheStatus = document.getElementById("analyticsCacheStatus");
+        if (cacheStatus) {
+            const generated = analytics.cache?.generatedAt;
+            cacheStatus.textContent = generated
+                ? `Cached network analytics · calculated ${new Date(generated).toLocaleString()}${analytics.cache.refreshing ? " · refreshing in background" : ""}`
+                : "";
+        }
         const summary =
             analytics.summary;
 
