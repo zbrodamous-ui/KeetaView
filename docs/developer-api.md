@@ -2,6 +2,8 @@
 
 Independent, free, invitation-only beta. No payment plan or uptime guarantee yet. Existing explorer endpoints remain public; beta quotas apply only to `/api/v1/` and do not restrict those legacy routes. This beta must not be advertised as paid exclusive access.
 
+Public getting-started page: [keetaview.com/developers.html](https://keetaview.com/developers.html). Beta access requests open a public GitHub issue; never include keys or private information. Operators must deliver keys privately.
+
 ## Operator setup
 
 After deploying, run commands inside the running service with the same persistent `KEETAVIEW_DATA_DIR` as the API:
