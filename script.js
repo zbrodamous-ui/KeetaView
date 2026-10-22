@@ -1161,119 +1161,120 @@ async function loadMarketData(
 }
 
 async function loadHomepage() {
-    try {
-        const [
-            statusResponse,
-            blocksResponse,
-            transfersResponse
-        ] =
-            await Promise.all([
-                fetchKeetaView(
-                    "http://localhost:3000/api/status"
-                ),
-                fetchKeetaView(
-                    "http://localhost:3000/api/blocks?limit=6&offset=0"
-                ),
-                fetchKeetaView(
-                    "http://localhost:3000/api/transfers?limit=6"
-                )
-            ]);
+    async function getData(url) {
+        const response = await fetchKeetaView(url);
 
-        if (
-            !statusResponse.ok ||
-            !blocksResponse.ok ||
-            !transfersResponse.ok
-        ) {
-            throw new Error(
-                "KeetaView API did not return homepage data."
-            );
+        if (!response.ok) {
+            throw new Error(`API returned ${response.status}`);
         }
 
-        const status =
-            await statusResponse.json();
+        return response.json();
+    }
 
-        const blocks =
-            await blocksResponse.json();
+    function showPanelError(container, retry) {
+        container.replaceChildren();
 
-        const transfers =
-            await transfersResponse.json();
+        const message = document.createElement("p");
+        message.className = "home-error";
+        message.textContent =
+            "This section could not load. Please try again.";
 
-        document.getElementById(
-            "snapshotBlocks"
-        ).textContent =
-            Number(
-                status.blocks
-            ).toLocaleString();
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = "Retry";
+        button.addEventListener("click", async () => {
+            button.disabled = true;
+            try {
+                await retry();
+            } finally {
+                button.disabled = false;
+            }
+        });
 
-        document.getElementById(
-            "snapshotTransfers"
-        ).textContent =
-            Number(
-                status.transfers
-            ).toLocaleString();
+        container.append(message, button);
+    }
 
-        document.getElementById(
-            "snapshotAccounts"
-        ).textContent =
-            Number(
-                status.accounts
-            ).toLocaleString();
+    async function loadStats() {
+        try {
+            const status = await getData("/api/status");
 
-        const totalRecentOperations =
-            blocks.reduce(
-                (total, block) =>
-                    total +
-                    Number(
-                        block.operation_count
-                    ),
+            for (const [id, value] of [
+                ["snapshotBlocks", status.blocks],
+                ["snapshotTransfers", status.transfers],
+                ["snapshotAccounts", status.accounts]
+            ]) {
+                document.getElementById(id).textContent =
+                    Number(value).toLocaleString();
+            }
+        } catch (error) {
+            console.error("Homepage statistics loading error:", error);
+
+            for (const id of [
+                "snapshotBlocks",
+                "snapshotTransfers",
+                "snapshotAccounts"
+            ]) {
+                const element = document.getElementById(id);
+                element.textContent = "Unavailable";
+                element.title = "Refresh the page to retry statistics.";
+            }
+        }
+    }
+
+    async function loadBlocks() {
+        try {
+            const blocks = await getData(
+                "/api/blocks?limit=6&offset=0"
+            );
+
+            const rows = blocks.map(createBlockRow);
+            const total = blocks.reduce(
+                (sum, block) => sum + Number(block.operation_count),
                 0
             );
 
-        const recentAverage =
-            blocks.length > 0
-                ? totalRecentOperations /
-                    blocks.length
-                : 0;
+            document.getElementById("snapshotAverage").textContent =
+                (blocks.length ? total / blocks.length : 0).toFixed(2);
 
-        document.getElementById(
-            "snapshotAverage"
-        ).textContent =
-            recentAverage.toFixed(2);
+            homeBlocksList.replaceChildren(...rows);
 
-        homeBlocksList.innerHTML = "";
-
-        blocks.forEach((block) => {
-            homeBlocksList.appendChild(
-                createBlockRow(block)
-            );
-        });
-
-        homeTransactionsList.innerHTML = "";
-
-        const transferRows =
-            await Promise.all(
-                transfers.map(
-                    createTransferRow
-                )
-            );
-
-        transferRows.forEach((row) => {
-            homeTransactionsList.appendChild(
-                row
-            );
-        });
-    } catch (error) {
-        console.error(
-            "Homepage loading error:",
-            error
-        );
-
-        homeBlocksList.innerHTML =
-            "<p class=\"home-error\">Start the KeetaView API to load indexed blocks.</p>";
-
-        homeTransactionsList.innerHTML =
-            "<p class=\"home-error\">Start the KeetaView API to load indexed transactions.</p>";
+            if (!rows.length) {
+                homeBlocksList.textContent = "No indexed blocks available.";
+            }
+        } catch (error) {
+            console.error("Homepage blocks loading error:", error);
+            document.getElementById("snapshotAverage").textContent = "—";
+            showPanelError(homeBlocksList, loadBlocks);
+        }
     }
+
+    async function loadTransfers() {
+        try {
+            const transfers = await getData(
+                "/api/transfers?limit=6"
+            );
+
+            const rows = await Promise.all(
+                transfers.map(createTransferRow)
+            );
+
+            homeTransactionsList.replaceChildren(...rows);
+
+            if (!rows.length) {
+                homeTransactionsList.textContent =
+                    "No indexed transfers available.";
+            }
+        } catch (error) {
+            console.error("Homepage transfers loading error:", error);
+            showPanelError(homeTransactionsList, loadTransfers);
+        }
+    }
+
+    await Promise.allSettled([
+        loadStats(),
+        loadBlocks(),
+        loadTransfers()
+    ]);
 }
 
 function loadKnownAssets() {
