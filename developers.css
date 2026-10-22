@@ -14,8 +14,8 @@
 .developer-shell pre { overflow-x: auto; padding: 20px; background: var(--surface-secondary); border-radius: 8px; line-height: 1.6; font-size: .9rem; }
 .developer-shell p code, .developer-shell li code, .developer-shell td code { overflow-wrap: anywhere; }
 .developer-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
-.developer-table-wrap { overflow-x: auto; }
-.developer-shell table { width: 100%; border-collapse: collapse; }
+.developer-table-wrap { max-width: 100%; overflow-x: auto; }
+.developer-shell table { width: 100%; min-width: 640px; border-collapse: collapse; }
 .developer-shell caption { text-align: left; color: var(--secondary-text); margin-bottom: 12px; }
 .developer-shell th, .developer-shell td { padding: 14px 12px; text-align: left; border-bottom: 1px solid var(--border-color); line-height: 1.5; }
 @media (max-width: 700px) { .developer-grid { grid-template-columns: 1fr; gap: 0; } .developer-shell { padding: 24px 16px 48px; } .developer-card { padding: 18px; } }
