@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+    <title>Businesses | KeetaView</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+
+<body class="assets-page-body businesses-page-body">
+
+<header class="home-header">
+    <a class="home-brand" href="index.html">
+        Keeta<span>View</span>
+    </a>
+
+    <form id="detailSearchForm" class="home-search">
+        <select id="detailSearchType" aria-label="Search type">
+            <option value="transaction">Transaction</option>
+            <option value="address">Address</option>
+            <option value="block">Block</option>
+            <option value="asset" selected>Asset</option>
+            <option value="anchor">Anchor</option>
+        </select>
+
+        <input
+            id="detailSearchInput"
+            type="search"
+            placeholder="Search address, transaction, block, or asset"
+            aria-label="Search value"
+        >
+
+        <button type="submit">Search</button>
+    </form>
+
+    <div class="home-header-actions">
+        <button
+            class="header-control"
+            type="button"
+            aria-label="Settings are coming in the next milestone"
+            title="Settings are coming next"
+        >
+            ⚙
+        </button>
+
+        <button
+            id="themeToggle"
+            class="header-control"
+            type="button"
+            aria-label="Switch appearance"
+        >
+            Theme
+        </button>
+    </div>
+</header>
+
+<nav class="home-navigation" aria-label="Main navigation">
+    <a href="index.html">Home</a>
+    <a href="blocks.html">Blocks</a>
+    <a href="transactions.html">Transactions</a>
+    <a href="addresses.html">Addresses</a>
+    <a href="assets.html">Assets</a>
+    <a href="businesses.html" class="active">Businesses</a>
+    <a href="analytics.html">Analytics</a>
+    <a href="status.html">Status</a>
+</nav>
+
+<main class="assets-dashboard business-dashboard">
+    <header class="assets-title-card">
+        <div>
+            <p class="home-eyebrow">KEETAVIEW DIRECTORY</p>
+            <h1>Public Business Directory</h1>
+            <p>Explore publicly identified businesses and their Keeta accounts.</p>
+        </div>
+        <div class="business-total"><strong id="businessTotal">0</strong><span>Businesses listed</span></div>
+    </header>
+    <section class="business-disclosure" aria-labelledby="businessCoverageTitle">
+        <h2 id="businessCoverageTitle">What these listings mean</h2>
+        <p>Each listing needs public evidence connecting a business to its account. This is a curated directory, not a complete registry of Keeta business accounts. A public listing or registered tag does not establish completed KYB verification or endorsement by Keeta or KeetaView.</p>
+        <p>Dates show when a business was listed on KeetaView, not when it registered on the network.</p>
+    </section>
+    <section class="assets-list-card" aria-labelledby="businessListTitle">
+        <header class="assets-card-header business-toolbar">
+            <div><p class="home-eyebrow">PUBLICLY SOURCED</p><h2 id="businessListTitle">Business Listings</h2><span id="businessCount" aria-live="polite">0 listings</span></div>
+            <div class="business-search"><label for="businessSearch">Find a business</label><input id="businessSearch" type="search" placeholder="Business name, Keeta tag, or address" autocomplete="off"><button id="businessSearchClear" type="button" hidden>Clear search</button></div>
+        </header>
+        <div id="businessList" class="business-list" aria-live="polite"><p class="business-empty">Loading public business listings…</p></div>
+        <noscript><p class="business-empty">Enable JavaScript to search this directory. No public business listings have been added yet.</p></noscript>
+    </section>
+</main>
+<script src="https://static.test.keeta.com/keetanet-browser.js"></script>
+<script src="shared.js"></script>
+<script src="background.js"></script>
+<script type="module" src="businesses.js"></script>
+</body>
+</html>
