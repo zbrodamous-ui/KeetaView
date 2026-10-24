@@ -1,4 +1,5 @@
 import http from "node:http";
+import { createReadQueryPool } from "./read-query-pool.js";
 import { monitorEventLoopDelay } from "node:perf_hooks";
 import { validStatusData } from "./status-snapshot.js";
 import { createAnalyticsCache } from "./analytics-cache.js";
@@ -191,6 +192,9 @@ const statusSnapshots = createAnalyticsCache({
 });
 // Warm the snapshot without holding an HTTP request open.
 void statusSnapshots.get();
+
+// Expensive operations searches cannot occupy the HTTP event loop.
+const operationQueries = createReadQueryPool({ databaseFile });
 
 const marketCache = new Map();
 
@@ -1339,6 +1343,10 @@ const server =
                 request.method === "GET" &&
                 url.pathname === "/api/operations"
             ) {
+                // One deadline covers queue time, rows and all optional counts.
+                const queryDeadline = Date.now() + 7000;
+                const readOperations = (sql, parameters = [], mode = 'all') =>
+                    operationQueries.query(sql, parameters, mode, queryDeadline);
                 const requestedLimit =
                     Number(url.searchParams.get("limit"));
 
@@ -1482,7 +1490,7 @@ const server =
                     `;
 
                 const operations =
-                    database.prepare(`
+                    await readOperations(`
                         SELECT
                             operations.block_hash,
                             operations.operation_index,
@@ -1503,12 +1511,12 @@ const server =
                         ORDER BY ${operationOrder}
                         LIMIT ?
                         OFFSET ?
-                    `).all(
+                    `, [
                         ...anchorParameters,
                         ...parameters,
                         limit + 1,
                         offset
-                    );
+                    ]);
 
                 const operationsWithAnchorStatus = accountNames.decorate(operations.slice(0, limit)).map(
                     (operation) => ({
@@ -1529,26 +1537,26 @@ const server =
                     operationTotal = Number.isFinite(count) ? count : null;
 
                 } else {
-                    operationTotal = database.prepare(`
+                    operationTotal = (await readOperations(`
                         SELECT COUNT(*) AS total
                         ${operationSource}
                         ${anchorJoin}
                         ${whereClause}
-                    `).get(
+                    `, [
                         ...anchorParameters,
                         ...parameters
-                    ).total;
+                    ], 'get')).total;
                 }
 
                 const anchorCounts = anchorsOnly
-                    ? database.prepare(`
+                    ? await readOperations(`
                         SELECT
                             COUNT(*) AS total,
                             SUM(signature_status = 'verified') AS verified,
                             SUM(signature_status = 'unsigned') AS unsigned,
                             SUM(signature_status = 'invalid') AS invalid
                         FROM anchors
-                    `).get()
+                    `, [], 'get')
                     : null;
 
                 sendJson(
@@ -1955,6 +1963,7 @@ const server =
             } catch (error) {
                 console.error(JSON.stringify({ event: 'api_request_failed', requestId, route: routeLabel, errorName: error?.name || 'Error' }));
                 if (!response.headersSent && !response.destroyed) {
+                    response.setHeader('Retry-After', '2');
                     sendJson(response, 503, { error: 'Request temporarily unavailable.', requestId });
                 } else if (!response.destroyed) response.destroy();
             }
@@ -1984,6 +1993,7 @@ function shutdown(signal) {
         `Closing KeetaView API after ${signal}...`
     );
 
+    void operationQueries.close();
     server.close(() => {
         try {
             trafficDatabase.close();
