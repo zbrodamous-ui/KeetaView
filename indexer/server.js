@@ -1,4 +1,6 @@
 import http from "node:http";
+import { monitorEventLoopDelay } from "node:perf_hooks";
+import { validStatusData } from "./status-snapshot.js";
 import { createAnalyticsCache } from "./analytics-cache.js";
 import { openDeveloperKeys, developerResponse } from "./developer-api.js";
 import { openAccountNames } from "./account-names.js";
@@ -170,6 +172,25 @@ const host =
             ? "0.0.0.0"
             : "127.0.0.1"
     );
+
+// Main-thread liveness is distinct from index freshness and database readiness.
+const eventLoop = monitorEventLoopDelay({ resolution: 20 });
+eventLoop.enable();
+setInterval(() => {
+    const maximumMs = eventLoop.max / 1e6;
+    if (maximumMs >= 1000) console.warn(JSON.stringify({ event: 'api_event_loop_delay', maximumMs: Math.round(maximumMs) }));
+    eventLoop.reset();
+}, 10000).unref();
+const statusSnapshots = createAnalyticsCache({
+    databaseFile, stateFile,
+    cacheFile: path.join(dataDirectory, 'index-status-cache.json'),
+    refreshMs: 30000, retryMs: 10000,
+    workerURL: new URL('./status-worker.js', import.meta.url),
+    validateData: validStatusData,
+    onError: error => console.error('Status snapshot refresh failed:', error.message)
+});
+// Warm the snapshot without holding an HTTP request open.
+void statusSnapshots.get();
 
 const marketCache = new Map();
 
@@ -692,6 +713,18 @@ async function sendStaticFile(
 const server =
     http.createServer(
         async (request, response) => {
+            const started = performance.now();
+            const requestId = crypto.randomUUID();
+            response.setHeader('X-Request-ID', requestId);
+            // Only known route labels are logged: never query strings, credentials or addresses.
+            let routeLabel = 'other';
+            response.once('finish', () => {
+                const durationMs = Math.round(performance.now() - started);
+                if (durationMs >= 1000 || response.statusCode >= 500) {
+                    console.warn(JSON.stringify({ event: 'api_request', requestId, route: routeLabel, status: response.statusCode, durationMs }));
+                }
+            });
+            try {
             const requestOrigin =
                 request.headers.origin;
 
@@ -707,6 +740,12 @@ const server =
                     request.url,
                     "http://127.0.0.1"
                 );
+
+            routeLabel = diagnosticRoutes.has(url.pathname) ? url.pathname : (url.pathname.startsWith('/api/') ? '/api/other' : 'static');
+            if (request.method === 'GET' && url.pathname === '/api/health') {
+                sendJson(response, 200, { api: 'up' });
+                return;
+            }
 
             // Telemetry uses its own database and market data uses an external
             // feed. Neither should reset the chain indexer's quiet period.
@@ -1882,151 +1921,19 @@ const server =
                 request.method === "GET" &&
                 url.pathname === "/api/status"
             ) {
-                const blockSummary =
-                    database.prepare(`
-                        SELECT
-                            COUNT(*) AS total,
-                            COALESCE(
-                                SUM(operation_count),
-                                0
-                            ) AS operations,
-                            COALESCE(
-                                AVG(operation_count),
-                                0
-                            ) AS average_operations,
-                            MIN(timestamp) AS first_timestamp,
-                            MAX(timestamp) AS latest_timestamp
-                        FROM blocks
-                    `).get();
-
-                const indexerState =
-                    readIndexerState();
-
-                const accounts =
-                    Number.isFinite(
-                        Number(indexerState?.accountsFound)
-                    )
-                        ? Number(indexerState.accountsFound)
-                        : database.prepare(`
-                            SELECT COUNT(*) AS total
-                            FROM accounts
-                        `).get().total;
-
-                const transfers =
-                    Number.isFinite(
-                        Number(indexerState?.transfersFound)
-                    )
-                        ? Number(indexerState.transfersFound)
-                        : database.prepare(`
-                            SELECT COUNT(*) AS total
-                            FROM transfers
-                        `).get().total;
-
-                const operations =
-                    Number(blockSummary.operations);
-
-                const assets =
-                    database.prepare(`
-                        SELECT COUNT(*) AS total
-                        FROM assets
-                    `).get().total;
-
-                const anchors =
-                    database.prepare(`
-                        SELECT COUNT(*) AS total
-                        FROM anchors
-                    `).get().total;
-
-                const databaseBytes = [
-                    databaseFile,
-                    `${databaseFile}-wal`,
-                    `${databaseFile}-shm`
-                ].reduce(
-                    (total, file) =>
-                        total + (
-                            fs.existsSync(file)
-                                ? fs.statSync(file).size
-                                : 0
-                        ),
-                    0
-                );
-
-                let historicalBackfill = null;
-
-                try {
-                    const savedBackfill =
-                        indexerState?.historicalBackfill;
-
-                    if (savedBackfill) {
-                        const startedAt =
-                            Date.parse(
-                                savedBackfill.startedAt
-                            );
-
-                        const elapsedHours =
-                            Number.isFinite(startedAt)
-                                ? Math.max(
-                                    (Date.now() - startedAt) /
-                                        3_600_000,
-                                    0
-                                )
-                                : 0;
-
-                        const blocksAdded =
-                            Number(
-                                savedBackfill.blocksAdded
-                            ) || 0;
-
-                        const bytesAdded =
-                            Number(
-                                savedBackfill.bytesAdded
-                            ) || 0;
-
-                        historicalBackfill = {
-                            ...savedBackfill,
-                            blocksPerHour:
-                                elapsedHours > 0
-                                    ? blocksAdded / elapsedHours
-                                    : 0,
-                            storageBytesPerHour:
-                                elapsedHours > 0
-                                    ? bytesAdded / elapsedHours
-                                    : 0
-                        };
-                    }
-                } catch (error) {
-                    console.warn(
-                        "Could not read historical backfill status:",
-                        error
-                    );
+                const snapshot = await statusSnapshots.get();
+                if (!snapshot) {
+                    response.setHeader('Retry-After', '5');
+                    sendJson(response, 503, { error: 'Index status is preparing. Please retry shortly.' });
+                    return;
                 }
-
-                sendJson(
-                    response,
-                    200,
-                    {
-                        blocks:
-                            blockSummary.total,
-                        accounts,
-                        transfers,
-                        operations,
-                        assets,
-                        anchors,
-                        databaseBytes,
-                        historicalBackfill,
-                        averageOperations:
-                            Number(
-                                blockSummary
-                                    .average_operations
-                            ),
-                        firstTimestamp:
-                            blockSummary
-                                .first_timestamp,
-                        latestTimestamp:
-                            blockSummary
-                                .latest_timestamp
+                sendJson(response, 200, {
+                    ...snapshot.data,
+                    cache: {
+                        generatedAt: new Date(snapshot.createdAt).toISOString(),
+                        refreshing: statusSnapshots.refreshing
                     }
-                );
+                });
 
                 return;
             }
@@ -2060,6 +1967,12 @@ const server =
                         "Route not found"
                 }
             );
+            } catch (error) {
+                console.error(JSON.stringify({ event: 'api_request_failed', requestId, route: routeLabel, errorName: error?.name || 'Error' }));
+                if (!response.headersSent && !response.destroyed) {
+                    sendJson(response, 503, { error: 'Request temporarily unavailable.', requestId });
+                } else if (!response.destroyed) response.destroy();
+            }
         }
     );
 

@@ -1,0 +1,31 @@
+# Intermittent site loading
+
+## Performance changes
+
+GET /api/status now builds aggregate statistics in a read-only worker instead of scanning blocks on the HTTP request thread. One refresh at a time returns the last valid persisted snapshot immediately; refresh is triggered when at least 30 seconds old. A failed refresh preserves the snapshot and backs off 10 seconds. Startup warms the cache. Cold requests without a snapshot return 503 with Retry-After: 5 (retry guidance, not a completion promise). Existing fields are preserved, with cache.generatedAt and cache.refreshing added. Check generatedAt before treating figures as current. State-file totals remain approximate.
+
+Homepage transfers render indexed values immediately, labelled as raw units until optional external token metadata arrives. Repeated tokens share one in-flight lookup. Failed or stalled metadata no longer prevents the transfer panel rendering. No decimals are guessed for the raw fallback.
+
+GET /api/health reports API process responsiveness without database work. It does not establish database readiness, index freshness or full site health. Other routes still use synchronous SQL; workers share CPU and disk. This removes specific blocking paths, not every possible cause of slow loading.
+
+Every response includes X-Request-ID. Requests taking at least one second or returning 5xx log api_request with the ID, known route label, status and duration. Exceptions log api_request_failed and return generic 503 without terminating the API. Event-loop maximum delays of at least one second log api_event_loop_delay in ten-second samples. Logs exclude queries, addresses, credentials and client IPs. A stalled loop reports only after resuming.
+
+## Compare network paths after deployment
+
+From local PowerShell, run:
+
+```powershell
+node indexer/check-site.mjs
+```
+
+Inside Railway SSH, compare:
+
+```bash
+node indexer/check-site.mjs http://127.0.0.1:8080
+```
+
+Adjust 8080 to configured PORT if needed. The six sequential requests each time out after eight seconds; there are no automatic retries or writes. Correlate checkedAt and request IDs with hosting logs.
+
+Fast local but slow public requests suggest investigating ingress, DNS, region or client network. Slow local health plus event-loop delay suggests another blocking route or resource pressure. Fast health with status 503 suggests a cold or failed status snapshot. Fast probes with a browser spinner require checking browser Network/Console, including external SDK loading; this probe cannot reproduce all browser dependencies.
+
+Check host CPU, RAM and disk alongside slow route logs before selecting further query optimizations. Static files still share the API service. Separating static hosting is a later infrastructure change requiring a routing and caching plan. Nothing here deletes, archives or rewrites indexed chain records. Only status snapshot cache files are generated. No production cleanup runs at deployment.

@@ -1,13 +1,15 @@
 import { Worker } from 'node:worker_threads';
 import fs from 'node:fs/promises';
 
-const validSnapshot = value => value && Number.isFinite(value.createdAt) &&
+const validAnalyticsData = data => data?.summary && ['activity', 'topSenders', 'topRecipients',
+    'tokenActivity', 'recentTransfers'].every(key => Array.isArray(data[key]));
+const validSnapshot = (value, validateData) => value && Number.isFinite(value.createdAt) &&
     value.createdAt > 0 && value.createdAt <= Date.now() &&
-    value.data?.summary && ['activity', 'topSenders', 'topRecipients',
-        'tokenActivity', 'recentTransfers'].every(key => Array.isArray(value.data[key]));
+    validateData(value.data);
 
 export function createAnalyticsCache({ databaseFile, stateFile, cacheFile,
     refreshMs = 10 * 60 * 1000, retryMs = 60 * 1000,
+    validateData = validAnalyticsData,
     workerURL = new URL('./analytics-worker.js', import.meta.url),
     onError = error => console.error('Analytics refresh failed:', error.message) }) {
     let snapshot = null;
@@ -16,7 +18,7 @@ export function createAnalyticsCache({ databaseFile, stateFile, cacheFile,
     let closed = false;
     const ready = fs.readFile(cacheFile, 'utf8').then(text => {
         const saved = JSON.parse(text);
-        if (validSnapshot(saved)) snapshot = saved;
+        if (validSnapshot(saved, validateData)) snapshot = saved;
     }).catch(() => {});
 
     function refresh() {
@@ -37,7 +39,7 @@ export function createAnalyticsCache({ databaseFile, stateFile, cacheFile,
             if (message.error) failure = new Error(message.error);
             else {
                 const candidate = { createdAt: Date.now(), data: message.data };
-                if (validSnapshot(candidate)) result = candidate;
+                if (validSnapshot(candidate, validateData)) result = candidate;
                 else failure = new Error('Invalid analytics worker response');
             }
         });
