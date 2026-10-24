@@ -1506,11 +1506,11 @@ const server =
                     `).all(
                         ...anchorParameters,
                         ...parameters,
-                        hideTinyKta ? limit + 1 : limit,
+                        limit + 1,
                         offset
                     );
 
-                const operationsWithAnchorStatus = accountNames.decorate(hideTinyKta ? operations.slice(0, limit) : operations).map(
+                const operationsWithAnchorStatus = accountNames.decorate(operations.slice(0, limit)).map(
                     (operation) => ({
                         ...operation,
                         is_anchor: Boolean(operation.anchor_signature_status)
@@ -1523,26 +1523,11 @@ const server =
                     // Avoid counting millions of rows for this optional filter.
                     operationTotal = null;
                 } else if (!anchorsOnly && conditions.length === 0) {
-                    if (transfersOnly) {
-                        const savedTransfers = Number(
-                            readIndexerState()?.transfersFound
-                        );
+                    // Counts must not scan the chain DB on the HTTP request thread.
+                    const snapshot = await statusSnapshots.get();
+                    const count = transfersOnly ? snapshot?.data.transfers : snapshot?.data.operations;
+                    operationTotal = Number.isFinite(count) ? count : null;
 
-                        operationTotal = Number.isFinite(savedTransfers)
-                            ? savedTransfers
-                            : database.prepare(`
-                                SELECT COUNT(*) AS total
-                                FROM transfers
-                            `).get().total;
-                    } else {
-                        operationTotal = database.prepare(`
-                            SELECT COALESCE(
-                                SUM(operation_count),
-                                0
-                            ) AS total
-                            FROM blocks
-                        `).get().total;
-                    }
                 } else {
                     operationTotal = database.prepare(`
                         SELECT COUNT(*) AS total
@@ -1575,7 +1560,7 @@ const server =
                         name_lookup: accountNames.usernameStatus(searchQuery),
                         total:
                             operationTotal === null ? null : Number(operationTotal || 0),
-                        ...(hideTinyKta ? { hasMore: operations.length > limit } : {}),
+                        ...(operationTotal === null ? { hasMore: operations.length > limit } : {}),
                         ...(anchorCounts
                             ? {
                                 anchorCounts: {

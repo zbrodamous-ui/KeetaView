@@ -466,8 +466,7 @@ async function prepareOperation(operation) {
         return {
             ...operation,
             displayAmount:
-                BigInt(operation.amount)
-                    .toLocaleString(),
+                `${BigInt(operation.amount).toLocaleString()} raw units`,
             tokenName:
                 shortValue(
                     operation.token,
@@ -478,7 +477,10 @@ async function prepareOperation(operation) {
     }
 }
 
+let operationsLoadGeneration = 0;
+
 async function loadOperationsPage() {
+    const generation = ++operationsLoadGeneration;
     transactionFilter.setAttribute("aria-busy", "true");
     transactionFilterClear.disabled = true;
     transactionsPageList.innerHTML =
@@ -540,6 +542,7 @@ async function loadOperationsPage() {
 
         const operationPayload =
             await operationsResponse.json();
+        if (generation !== operationsLoadGeneration) return;
 
         const operations =
             Array.isArray(operationPayload)
@@ -570,12 +573,23 @@ async function loadOperationsPage() {
                 `Invalid (${Number(counts.invalid || 0).toLocaleString()})`;
         }
 
-        loadedOperations =
-            await Promise.all(
-                operations.map(prepareOperation)
-            );
-
+        loadedOperations = operations.map(operation => ({
+            ...operation,
+            ...(operation.token && operation.amount != null ? {
+                displayAmount: `${BigInt(operation.amount).toLocaleString()} raw units`,
+                tokenName: shortValue(operation.token, 8, 6)
+            } : {})
+        }));
         renderCurrentPage();
+        // Optional metadata must not hold all indexed operations behind one network call.
+        operations.forEach((operation, index) => {
+            void prepareOperation(operation).then(prepared => {
+                if (generation !== operationsLoadGeneration) return;
+                loadedOperations[index] = prepared;
+                renderCurrentPage();
+            }).catch(() => {});
+        });
+
         if (!operations.length && operationPayload.name_lookup) {
             const message = transactionsPageList.querySelector(".transactions-empty");
             if (message) message.textContent = {
@@ -586,6 +600,7 @@ async function loadOperationsPage() {
             }[operationPayload.name_lookup];
         }
     } catch (error) {
+        if (generation !== operationsLoadGeneration) return;
         console.error(
             "Error loading operations page:",
             error
@@ -601,6 +616,7 @@ async function loadOperationsPage() {
             "Unavailable";
         pageNumber.textContent = "Page —";
     } finally {
+        if (generation !== operationsLoadGeneration) return;
         transactionFilter.removeAttribute("aria-busy");
         transactionFilterClear.disabled = false;
     }

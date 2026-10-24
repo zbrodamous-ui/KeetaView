@@ -2,7 +2,7 @@
 const base = new URL(process.argv[2] || 'https://keetaview.com');
 if (!['http:', 'https:'].includes(base.protocol) || base.username || base.password || base.search || base.hash) throw Error('Supply an HTTP(S) base URL without credentials or query parameters');
 const results=[];
-for(const pathname of ['/', '/shared.js', '/api/health', '/api/status', '/api/blocks?limit=6&offset=0', '/api/transfers?limit=6']) {
+for(const pathname of ['/', '/shared.js', '/api/health', '/api/status', '/api/blocks?limit=6&offset=0', '/api/transfers?limit=6', '/api/operations?limit=20&offset=0']) {
  const started=performance.now();
  try {
   const r=await fetch(new URL(pathname,base),{signal:AbortSignal.timeout(8000),redirect:'error',cache:'no-store'});
