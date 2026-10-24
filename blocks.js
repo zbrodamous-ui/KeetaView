@@ -7,7 +7,8 @@ const blockResultCount = document.getElementById("blockResultCount");
 
 const blocksPerPage = 15;
 let currentPage = 1;
-let totalBlocks = 0;
+let totalBlocks = null;
+let blocksLoadGeneration = 0;
 let loadedBlocks = [];
 
 function blockUrl(hash) {
@@ -76,14 +77,18 @@ function renderBlocksPage() {
 
     blockResultCount.textContent = query
         ? `${visibleBlocks.length} matching on this page`
-        : `${firstBlock.toLocaleString()}–${lastBlock.toLocaleString()} of ${totalBlocks.toLocaleString()}`;
+        : totalBlocks === null
+            ? `${visibleBlocks.length} blocks on this page · Total unavailable`
+            : `${firstBlock.toLocaleString()}–${lastBlock.toLocaleString()} of ${totalBlocks.toLocaleString()}`;
 
-    pageNumber.textContent = `Page ${currentPage} of ${totalPages}`;
+    pageNumber.textContent = totalBlocks === null ? `Page ${currentPage}` : `Page ${currentPage} of ${totalPages}`;
     previousButton.disabled = currentPage === 1;
-    nextButton.disabled = currentPage >= totalPages;
+    nextButton.disabled = totalBlocks === null ? loadedBlocks.length < blocksPerPage : currentPage >= totalPages;
 }
 
 async function loadBlocksPage() {
+    const generation = ++blocksLoadGeneration;
+    loadedBlocks = [];
     blocksPageList.innerHTML =
         '<p class="blocks-empty">Loading blocks…</p>';
     blockResultCount.textContent = "Loading blocks…";
@@ -92,27 +97,28 @@ async function loadBlocksPage() {
 
     try {
         const offset = (currentPage - 1) * blocksPerPage;
-        const [blocksResponse, statusResponse] = await Promise.all([
-            fetchKeetaView(
-                `http://localhost:3000/api/blocks?limit=${blocksPerPage}&offset=${offset}`
-            ),
-            fetchKeetaView("http://localhost:3000/api/status")
-        ]);
-
-        if (!blocksResponse.ok || !statusResponse.ok) {
-            throw new Error("Unable to load indexed blocks");
-        }
-
-        loadedBlocks = await blocksResponse.json();
-        const status = await statusResponse.json();
-        totalBlocks = Number(status.blocks || 0);
+        // Totals enrich the page independently; a delayed status request cannot hide rows.
+        void fetchKeetaView("/api/status").then(async response => {
+            if (!response.ok) return;
+            const status = await response.json();
+            if (generation !== blocksLoadGeneration) return;
+            const count = Number(status.blocks);
+            if (Number.isFinite(count) && count >= 0) totalBlocks = count;
+            if (loadedBlocks.length) renderBlocksPage();
+        }).catch(() => {});
+        const blocksResponse = await fetchKeetaView(`/api/blocks?limit=${blocksPerPage}&offset=${offset}`);
+        if (!blocksResponse.ok) throw new Error("Unable to load indexed blocks");
+        const blocks = await blocksResponse.json();
+        if (generation !== blocksLoadGeneration) return;
+        loadedBlocks = blocks;
 
         renderBlocksPage();
     } catch (error) {
+        if (generation !== blocksLoadGeneration) return;
         console.error("Error loading blocks page:", error);
         loadedBlocks = [];
         blocksPageList.innerHTML =
-            '<p class="blocks-empty">Unable to load blocks. Make sure the KeetaView API server is running.</p>';
+            '<p class="blocks-empty">Unable to load blocks. Please try again shortly.</p>';
         blockResultCount.textContent = "Unavailable";
         pageNumber.textContent = "Page —";
         previousButton.disabled = true;
@@ -137,7 +143,7 @@ previousButton.addEventListener("click", () => {
 nextButton.addEventListener("click", () => {
     const totalPages = Math.ceil(totalBlocks / blocksPerPage);
 
-    if (currentPage < totalPages) {
+    if (totalBlocks === null ? loadedBlocks.length >= blocksPerPage : currentPage < totalPages) {
         currentPage += 1;
         blockFilter.value = "";
         loadBlocksPage();

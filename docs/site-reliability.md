@@ -24,8 +24,14 @@ Inside Railway SSH, compare:
 node indexer/check-site.mjs http://127.0.0.1:8080
 ```
 
-Adjust 8080 to configured PORT if needed. The six sequential requests each time out after eight seconds; there are no automatic retries or writes. Correlate checkedAt and request IDs with hosting logs.
+Adjust 8080 to configured PORT if needed. The seven sequential requests each time out after eight seconds; there are no automatic retries or writes. Correlate checkedAt and request IDs with hosting logs.
 
 Fast local but slow public requests suggest investigating ingress, DNS, region or client network. Slow local health plus event-loop delay suggests another blocking route or resource pressure. Fast health with status 503 suggests a cold or failed status snapshot. Fast probes with a browser spinner require checking browser Network/Console, including external SDK loading; this probe cannot reproduce all browser dependencies.
 
 Check host CPU, RAM and disk alongside slow route logs before selecting further query optimizations. Static files still share the API service. Separating static hosting is a later infrastructure change requiring a routing and caching plan. Nothing here deletes, archives or rewrites indexed chain records. Only status snapshot cache files are generated. No production cleanup runs at deployment.
+
+## Directory pages
+
+The unfiltered operations listing reuses the persisted status count instead of summing the blocks table per request. If no count is ready, rows still return with total:null and hasMore based on a single extra row. Known totals are cached figures, not a new exact count at request time. Explicitly filtered/name/anchor queries retain their existing count semantics and can still be expensive.
+
+Blocks renders independently of the optional status total. If the total is unavailable, it shows a page number and permits next-page navigation when the current page is full; an exactly full final page may lead to one empty page. Transactions renders raw indexed amounts immediately and enriches metadata later; late metadata from an older page cannot overwrite a newer page. No indexed records are changed. The probe now includes the default operations endpoint used by Transactions.
