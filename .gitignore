@@ -11,3 +11,7 @@ indexer/*.db-*
 indexer/database-reset-marker.txt
 /indexer/network-analytics-cache.json
 /indexer/network-analytics-cache.json.*.tmp
+
+# Persisted status snapshots
+indexer/index-status-cache.json
+indexer/index-status-cache.json.*.tmp

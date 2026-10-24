@@ -251,28 +251,19 @@ async function getTokenDisplay(
     tokenAddress,
     rawAmount
 ) {
-    let tokenInfo =
-        tokenDisplayCache.get(
-            tokenAddress
-        );
-
-    if (!tokenInfo) {
-        const tokenAccount =
-            KeetaNet.lib.Account
-                .fromPublicKeyString(
-                    tokenAddress
-                );
-
-        tokenInfo =
-            await client.getAccountInfo(
-                tokenAccount
-            );
-
-        tokenDisplayCache.set(
-            tokenAddress,
-            tokenInfo
-        );
+    // Cache the in-flight request too, so repeated tokens share one lookup.
+    let pending = tokenDisplayCache.get(tokenAddress);
+    if (!pending) {
+        pending = Promise.resolve().then(() => {
+            const tokenAccount = KeetaNet.lib.Account.fromPublicKeyString(tokenAddress);
+            return client.getAccountInfo(tokenAccount);
+        });
+        tokenDisplayCache.set(tokenAddress, pending);
+        pending.catch(() => {
+            if (tokenDisplayCache.get(tokenAddress) === pending) tokenDisplayCache.delete(tokenAddress);
+        });
     }
+    const tokenInfo = await pending;
 
     let decimals = 0;
 
@@ -346,73 +337,30 @@ function createBlockRow(block) {
     return row;
 }
 
-async function createTransferRow(
-    transfer
-) {
-    const row =
-        document.createElement("a");
-
-    row.className =
-        "home-preview-row";
-
-    row.href =
-        `transaction.html?block=${encodeURIComponent(
-            transfer.block_hash
-        )}&operation=${transfer.operation_index}`;
-
-    let amountText =
-        BigInt(
-            transfer.amount
-        ).toLocaleString();
-
-    let tokenText =
-        shortValue(
-            transfer.token,
-            8,
-            4
-        );
-
-    try {
-        const tokenDisplay =
-            await getTokenDisplay(
-                transfer.token,
-                transfer.amount
-            );
-
-        amountText =
-            tokenDisplay.amount;
-
-        tokenText =
-            tokenDisplay.name;
-    } catch (error) {
-        console.warn(
-            "Unable to format homepage token:",
-            transfer.token,
-            error
-        );
-    }
-
-    row.innerHTML = `
-        <span class="preview-icon">⇄</span>
-
-        <span class="preview-main">
-            <strong>
-                ${shortValue(transfer.sender, 9, 5)}
-                →
-                ${shortValue(transfer.recipient, 9, 5)}
-            </strong>
-
-            <small>
-                ${timeAgo(transfer.timestamp)}
-            </small>
-        </span>
-
-        <span class="preview-value">
-            ${amountText}
-            ${tokenText}
-        </span>
-    `;
-
+function createTransferRow(transfer) {
+    const row = document.createElement('a');
+    row.className = 'home-preview-row';
+    row.href = `transaction.html?block=${encodeURIComponent(transfer.block_hash)}&operation=${transfer.operation_index}`;
+    const icon = document.createElement('span');
+    icon.className = 'preview-icon';
+    icon.textContent = '⇄';
+    const main = document.createElement('span');
+    main.className = 'preview-main';
+    const addresses = document.createElement('strong');
+    addresses.textContent = `${shortValue(transfer.sender, 9, 5)} → ${shortValue(transfer.recipient, 9, 5)}`;
+    const age = document.createElement('small');
+    age.textContent = timeAgo(transfer.timestamp);
+    main.append(addresses, age);
+    const value = document.createElement('span');
+    value.className = 'preview-value';
+    // Render indexed evidence immediately. Metadata is optional enrichment.
+    value.textContent = `${BigInt(transfer.amount).toLocaleString()} raw units · ${shortValue(transfer.token, 8, 4)}`;
+    row.append(icon, main, value);
+    void getTokenDisplay(transfer.token, transfer.amount).then(display => {
+        value.textContent = `${display.amount} ${display.name}`;
+    }).catch(() => {
+        // Keep clearly labelled raw units if the external metadata lookup fails.
+    });
     return row;
 }
 
