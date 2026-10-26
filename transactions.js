@@ -415,7 +415,7 @@ function renderCurrentPage() {
 
     transactionResultCount.textContent =
         filteredPagination
-            ? `${operations.length ? firstResult.toLocaleString() : "0"}–${lastResult.toLocaleString()} · Filtered results`
+            ? `${operations.length ? firstResult.toLocaleString() : "0"}–${lastResult.toLocaleString()} · Results · total not calculated`
             : `${firstResult.toLocaleString()}–${lastResult.toLocaleString()} of ${totalOperations.toLocaleString()}`;
 
     transactionsListTitle.textContent =
@@ -525,6 +525,7 @@ async function loadOperationsPage() {
 
         if (searchQuery) {
             operationParameters.set("q", searchQuery);
+            operationParameters.set("pageOnly", "true");
         }
 
         if (hideTinyKta.checked) operationParameters.set("hideTinyKta", "true");

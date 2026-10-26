@@ -6,6 +6,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
 import { openAccountNames, nameSearchCondition } from './account-names.js';
+import { SEARCH_INDEXES } from './account-search-page.js';
 
  test('persistent names, negative cache, rename, removal and failed refresh', () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'keeta-names-'));
@@ -57,6 +58,7 @@ test('transaction API searches and returns cached names without a network worker
     for (const match of source.matchAll(/database\.exec\(`([\s\S]*?)`\);/g)) {
         if (/CREATE TABLE|CREATE INDEX/.test(match[1])) db.exec(match[1]);
     }
+    for (const index of SEARCH_INDEXES) db.exec(index.sql);
     db.prepare('INSERT INTO blocks VALUES (?, ?, ?)').run('block', '2026-10-06', 3);
     const insert = db.prepare(`INSERT INTO operations
         (block_hash, operation_index, operation_type, sender, recipient, timestamp, details_json)
@@ -136,6 +138,11 @@ test('transaction API searches and returns cached names without a network worker
         assert.equal(username.total, 1);
         assert.equal(username.operations[0].sender_username, 'alice$keeta.xyz');
         assert.equal(username.name_lookup, 'cached');
+        const optimized = await (await fetch('http://127.0.0.1:31987/api/operations?q=alice%24keeta.xyz&pageOnly=true')).json();
+        assert.equal(optimized.total, null);
+        assert.equal(optimized.hasMore, false);
+        assert.equal(optimized.operations[0].sender_username, 'alice$keeta.xyz');
+        assert.equal(optimized.ordering, 'timestamp_desc');
         const activity = await (await fetch('http://127.0.0.1:31987/api/transfers?address=a')).json();
         assert.equal(activity[0].sender_username, 'alice$keeta.xyz');
         assert.equal(activity[0].recipient_name, 'Shared');

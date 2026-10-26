@@ -27,7 +27,7 @@ export function transactionSearch(cache, query) {
             sources.push("SELECT rowid FROM operations INDEXED BY operations_by_type WHERE operation_type = ?");
             parameters.push(type);
         }
-        return { sql: `operations.rowid IN (${sources.join(" UNION ")})`, parameters, empty: false };
+        return { sql: `operations.rowid IN (${sources.join(" UNION ")})`, parameters, empty: false, addresses, hasType };
     }
     // Partial/unknown names cannot match chain identifiers. Return immediately;
     // cache.search above may have queued an exact registered username locally.
