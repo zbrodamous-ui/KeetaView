@@ -1,4 +1,5 @@
 import http from "node:http";
+import { accountSearchPage, SEARCH_INDEXES } from "./account-search-page.js";
 import { createReadQueryPool } from "./read-query-pool.js";
 import { monitorEventLoopDelay } from "node:perf_hooks";
 import { validStatusData } from "./status-snapshot.js";
@@ -1347,7 +1348,7 @@ const server =
                 // One deadline covers queue time, rows and all optional counts.
                 const queryDeadline = Date.now() + 7000;
                 const readOperations = (sql, parameters = [], mode = 'all') =>
-                    (anchorsOnly || conditions.length ? filteredOperationQueries : operationQueries)
+                    (anchorsOnly || conditions.length || searchQuery ? filteredOperationQueries : operationQueries)
                         .query(sql, parameters, mode, queryDeadline);
                 const requestedLimit =
                     Number(url.searchParams.get("limit"));
@@ -1433,6 +1434,32 @@ const server =
                             name_lookup: accountNames.usernameStatus(searchQuery)
                         });
                         return;
+                    }
+                    if (url.searchParams.get('pageOnly') === 'true' && search.addresses?.length && !search.hasType) {
+                        let plan;
+                        try {
+                            plan = accountSearchPage({ addresses: search.addresses, limit, offset,
+                                conditions, parameters, transfersOnly, anchorsOnly, anchorStatus });
+                        } catch (error) {
+                            sendJson(response, 400, { error: error.message });
+                            return;
+                        }
+                        const installed = await readOperations(
+                            "SELECT name FROM sqlite_master WHERE type='index' AND name IN (?, ?)",
+                            SEARCH_INDEXES.map(index => index.name));
+                        if (installed.length === SEARCH_INDEXES.length) {
+                            const rows = await readOperations(plan.sql, plan.parameters);
+                            sendJson(response, 200, {
+                                operations: accountNames.decorate(rows.slice(0, limit)).map(operation => ({
+                                    ...operation, is_anchor: Boolean(operation.anchor_signature_status)
+                                })),
+                                total: null, hasMore: rows.length > limit,
+                                name_lookup: accountNames.usernameStatus(searchQuery),
+                                ordering: 'timestamp_desc', countMode: 'page_only'
+                            });
+                            return;
+                        }
+                        // Staged rollout: keep prior behavior until both indexes exist.
                     }
                     conditions.push(search.sql);
                     parameters.push(...search.parameters);
