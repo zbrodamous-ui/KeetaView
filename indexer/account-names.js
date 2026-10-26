@@ -1,43 +1,63 @@
 import { DatabaseSync } from "node:sqlite";
 import { normalizeKeetaUsername } from "./username-resolution.js";
 
+// Initialization runs before either service accepts work. Retry only lock errors,
+// including extended SQLITE_BUSY_RECOVERY (261), without replacing the cache.
+function initializeAccountNames(file) {
+    const deadline = performance.now() + 10000;
+    for (;;) {
+        let db;
+        try {
+            db = new DatabaseSync(file);
+            // Install the handler before WAL recovery or schema initialization.
+            db.exec("PRAGMA busy_timeout = 250");
+            db.exec(`
+                PRAGMA journal_mode = WAL;
+                CREATE TABLE IF NOT EXISTS account_names (
+                    address TEXT PRIMARY KEY,
+                    name TEXT,
+                    checked_at INTEGER NOT NULL,
+                    retry_at INTEGER NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS account_names_by_name
+                    ON account_names(name COLLATE NOCASE);
+                CREATE INDEX IF NOT EXISTS account_names_by_retry
+                    ON account_names(retry_at);
+                CREATE TABLE IF NOT EXISTS name_progress (
+                    id INTEGER PRIMARY KEY CHECK(id = 1), cursor TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS account_usernames (
+                    address TEXT PRIMARY KEY,
+                    username TEXT COLLATE NOCASE UNIQUE,
+                    checked_at INTEGER NOT NULL,
+                    retry_at INTEGER NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS account_usernames_by_retry ON account_usernames(retry_at);
+                CREATE TABLE IF NOT EXISTS username_progress (
+                    id INTEGER PRIMARY KEY CHECK(id = 1), cursor TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS username_queries (
+                    query TEXT PRIMARY KEY,
+                    checked_at INTEGER NOT NULL DEFAULT 0,
+                    retry_at INTEGER NOT NULL DEFAULT 0
+                );
+                CREATE INDEX IF NOT EXISTS username_queries_pending
+                    ON username_queries(retry_at) WHERE checked_at = 0;
+            `);
+            db.exec("PRAGMA busy_timeout = 1000");
+            return db;
+        } catch (error) {
+            try { db?.close(); } catch {}
+            const primaryCode = error.errcode & 0xff;
+            if (![5, 6].includes(primaryCode) || performance.now() >= deadline) throw error;
+            Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50);
+        }
+    }
+}
+
 // Separate from the chain database: name refreshes cannot lock chain indexing.
 export function openAccountNames(file) {
-    const db = new DatabaseSync(file);
-    db.exec(`
-        PRAGMA journal_mode = WAL;
-        PRAGMA busy_timeout = 1000;
-        CREATE TABLE IF NOT EXISTS account_names (
-            address TEXT PRIMARY KEY,
-            name TEXT,
-            checked_at INTEGER NOT NULL,
-            retry_at INTEGER NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS account_names_by_name
-            ON account_names(name COLLATE NOCASE);
-        CREATE INDEX IF NOT EXISTS account_names_by_retry
-            ON account_names(retry_at);
-        CREATE TABLE IF NOT EXISTS name_progress (
-            id INTEGER PRIMARY KEY CHECK(id = 1), cursor TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS account_usernames (
-            address TEXT PRIMARY KEY,
-            username TEXT COLLATE NOCASE UNIQUE,
-            checked_at INTEGER NOT NULL,
-            retry_at INTEGER NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS account_usernames_by_retry ON account_usernames(retry_at);
-        CREATE TABLE IF NOT EXISTS username_progress (
-            id INTEGER PRIMARY KEY CHECK(id = 1), cursor TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS username_queries (
-            query TEXT PRIMARY KEY,
-            checked_at INTEGER NOT NULL DEFAULT 0,
-            retry_at INTEGER NOT NULL DEFAULT 0
-        );
-        CREATE INDEX IF NOT EXISTS username_queries_pending
-            ON username_queries(retry_at) WHERE checked_at = 0;
-    `);
+    const db = initializeAccountNames(file);
     const usernameLookup = db.prepare("SELECT username FROM account_usernames WHERE address = ?");
     const usernameFind = db.prepare("SELECT address, username FROM account_usernames WHERE username = ? COLLATE NOCASE");
     const lookup = db.prepare("SELECT name FROM account_names WHERE address = ?");
