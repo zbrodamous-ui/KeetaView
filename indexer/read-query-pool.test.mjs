@@ -5,7 +5,14 @@ import os from 'node:os';
 import path from 'node:path';
 import {DatabaseSync} from 'node:sqlite';
 import {createReadQueryPool} from './read-query-pool.js';
-const fixture=code=>new URL('data:text/javascript,'+encodeURIComponent(`import {parentPort,workerData} from 'node:worker_threads';${code}`));
+const fixtureDirectories=[];
+const fixture=code=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'kv-child-fixture-'));fixtureDirectories.push(dir);
+ const file=path.join(dir,'worker.mjs');
+ fs.writeFileSync(file,`process.once('message',workerData=>{const parentPort={postMessage:result=>process.send(result,()=>process.exit(0))};${code}});`);
+ return file;
+};
+test.after(()=>{for(const dir of fixtureDirectories)fs.rmSync(dir,{recursive:true,force:true});});
 test('worker reads preserve exact values and refuse writes',async()=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'kv-query-')),databaseFile=path.join(dir,'chain.db');const db=new DatabaseSync(databaseFile);db.exec("CREATE TABLE evidence(amount TEXT); INSERT INTO evidence VALUES('900719925474099312345')");db.close();const pool=createReadQueryPool({databaseFile});
  try{assert.deepEqual(await pool.query('SELECT amount FROM evidence'),[{amount:'900719925474099312345'}]);await assert.rejects(pool.query('DELETE FROM evidence'));assert.equal((await pool.query('SELECT COUNT(*) n FROM evidence',[],'get')).n,1);}finally{await pool.close();fs.rmSync(dir,{recursive:true,force:true});}
@@ -21,4 +28,14 @@ test('deadline includes queue time and close rejects queued and active work',asy
 test('timeout rejects slow work and later tasks recover after worker exits',async()=>{
  const pool=createReadQueryPool({concurrency:1,maxQueue:1,timeoutMs:500,workerURL:fixture("if(workerData.sql==='slow')Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,1000);parentPort.postMessage({result:1})")});
  try{await assert.rejects(pool.query('slow'),/too long/);const end=Date.now()+3000;while(pool.running){if(Date.now()>end)throw Error('worker did not exit');await new Promise(r=>setTimeout(r,10));}assert.equal(await pool.query('fast',[],'all',Date.now()+1000),1);}finally{await pool.close();}
+});
+
+test('native recursive SQL is forcibly stopped and its slot recovers',async()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'kv-native-')),databaseFile=path.join(dir,'chain.db');const db=new DatabaseSync(databaseFile);db.exec('CREATE TABLE evidence(value TEXT);');db.close();
+ const diagnostics=[];const pool=createReadQueryPool({databaseFile,concurrency:1,timeoutMs:500,onDiagnostic:event=>diagnostics.push(event)});
+ try{
+  await assert.rejects(pool.query('WITH RECURSIVE n(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM n) SELECT SUM(x) FROM n'),/too long/);
+  const end=Date.now()+3000;while(pool.running){if(Date.now()>end)throw Error('Native SQL process remained alive');await new Promise(r=>setTimeout(r,10));}
+  assert.equal((await pool.query('SELECT 1 AS ok',[],'get')).ok,1);assert.equal(diagnostics[0].phase,'running');
+ }finally{await pool.close();fs.rmSync(dir,{recursive:true,force:true});}
 });

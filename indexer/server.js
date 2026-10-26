@@ -194,7 +194,8 @@ const statusSnapshots = createAnalyticsCache({
 void statusSnapshots.get();
 
 // Expensive operations searches cannot occupy the HTTP event loop.
-const operationQueries = createReadQueryPool({ databaseFile });
+const operationQueries = createReadQueryPool({ databaseFile, concurrency: 1, maxQueue: 4 });
+const filteredOperationQueries = createReadQueryPool({ databaseFile, concurrency: 1, maxQueue: 4 });
 
 const marketCache = new Map();
 
@@ -747,7 +748,7 @@ const server =
 
             routeLabel = diagnosticRoutes.has(url.pathname) ? url.pathname : (url.pathname.startsWith('/api/') ? '/api/other' : 'static');
             if (request.method === 'GET' && url.pathname === '/api/health') {
-                sendJson(response, 200, { api: 'up' });
+                sendJson(response, 200, { api: 'up', queries: { listing: operationQueries.diagnostics(), filtered: filteredOperationQueries.diagnostics() } });
                 return;
             }
 
@@ -1346,7 +1347,8 @@ const server =
                 // One deadline covers queue time, rows and all optional counts.
                 const queryDeadline = Date.now() + 7000;
                 const readOperations = (sql, parameters = [], mode = 'all') =>
-                    operationQueries.query(sql, parameters, mode, queryDeadline);
+                    (anchorsOnly || conditions.length ? filteredOperationQueries : operationQueries)
+                        .query(sql, parameters, mode, queryDeadline);
                 const requestedLimit =
                     Number(url.searchParams.get("limit"));
 
@@ -1994,6 +1996,7 @@ function shutdown(signal) {
     );
 
     void operationQueries.close();
+    void filteredOperationQueries.close();
     server.close(() => {
         try {
             trafficDatabase.close();

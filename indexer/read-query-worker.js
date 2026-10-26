@@ -1,14 +1,17 @@
-import {parentPort,workerData} from 'node:worker_threads';
 import {DatabaseSync} from 'node:sqlite';
-const {databaseFile,sql,parameters,mode}=workerData;
-let db;
-try {
- db=new DatabaseSync(databaseFile,{readOnly:true});
- db.exec('PRAGMA query_only=ON; PRAGMA busy_timeout=1000');
- const statement=db.prepare(sql);
- const result=mode==='get'?statement.get(...parameters):statement.all(...parameters);
- parentPort.postMessage({result});
-} catch {
- // SQL and supplied search parameters must not appear in logs or responses.
- parentPort.postMessage({error:'Indexed query temporarily unavailable.'});
-} finally {db?.close();}
+// One read-only query per subprocess. SQL travels over IPC, never command-line arguments.
+process.once('message', ({databaseFile,sql,parameters,mode}) => {
+ let db, message;
+ try {
+  db=new DatabaseSync(databaseFile,{readOnly:true});
+  db.exec('PRAGMA query_only=ON; PRAGMA busy_timeout=1000');
+  const statement=db.prepare(sql);
+  message={result:mode==='get'?statement.get(...parameters):statement.all(...parameters)};
+ } catch {
+  message={error:'Indexed query temporarily unavailable.'};
+ } finally {db?.close();}
+ process.send(message, error => {
+  if(process.connected)process.disconnect();
+  process.exit(error?1:0);
+ });
+});
