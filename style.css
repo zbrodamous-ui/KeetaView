@@ -7498,3 +7498,28 @@ html[data-theme="soft"] .system-status strong {
 .operation-filter-menu label { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
 .operation-filter-menu input { width: 18px; height: 18px; accent-color: #29a4ff; }
 .operation-filter-menu p { color: var(--secondary-text); font-size: .8rem; line-height: 1.5; }
+
+/* Public business directory */
+.business-total { display: grid; gap: 6px; min-width: 140px; }
+.business-total strong { font-size: 2.4rem; }
+.business-total span, .business-date, .business-disclosure p, .business-empty p { color: var(--secondary-text); }
+.business-disclosure { border: 1px solid var(--border-color, #292929); border-radius: 18px; padding: 24px; background: var(--surface-background); }
+.business-disclosure h2 { font-size: 1rem; margin: 0 0 10px; }
+.business-disclosure p { line-height: 1.6; margin: 8px 0 0; }
+.business-toolbar { gap: 24px; flex-wrap: wrap; }
+.business-search { display: grid; gap: 8px; width: min(100%, 380px); }
+.business-search label { font-size: .85rem; }
+.business-search input { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid var(--border-color, #333); border-radius: 10px; background: var(--surface-secondary); color: var(--primary-text); }
+.business-search button { justify-self: start; cursor: pointer; padding: 8px 12px; }
+.business-search input:focus-visible { outline: 2px solid #38aaff; outline-offset: 2px; }
+.business-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 16px; padding: 24px; }
+.business-empty { grid-column: 1 / -1; padding: 32px 12px; text-align: center; }
+.business-empty h3 { margin-top: 0; }
+.business-empty p { max-width: 620px; margin: auto; line-height: 1.6; }
+.business-card { border: 1px solid var(--border-color, #333); border-radius: 12px; padding: 20px; min-width: 0; }
+.business-label { color: var(--link-color); font-size: .8rem; }
+.business-address { display: block; overflow-wrap: anywhere; color: var(--link-color); }
+.business-sources { padding-left: 20px; }
+.business-sources a { color: var(--link-color); }
+.business-card h4 { margin-bottom: 8px; }
+@media (max-width: 600px) { .business-list { padding: 16px; } .business-total strong { font-size: 1.8rem; } }
