@@ -101,7 +101,7 @@ function renderAddressesPage() {
         const empty = document.createElement("p");
         empty.className = "addresses-empty";
         empty.textContent = query
-            ? "No addresses on this page match that filter."
+            ? "No indexed addresses match this search."
             : "No indexed addresses are available.";
         addressesPageList.appendChild(empty);
     } else {
@@ -204,6 +204,16 @@ function scheduleAddressSearch() {
     const query = addressFilter.value.trim();
     if (!query) {
         loadAddressesPage("", generation);
+        return;
+    }
+
+    if (query.length < 12) {
+        addressesPageList.innerHTML =
+            '<p class="addresses-empty">Enter at least 12 characters to search indexed addresses.</p>';
+        addressResultCount.textContent = "Search needs 12 or more characters";
+        pageNumber.textContent = "Page 1 of 1";
+        previousPageButton.disabled = true;
+        nextPageButton.disabled = true;
         return;
     }
 
