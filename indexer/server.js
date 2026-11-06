@@ -1862,6 +1862,57 @@ const server =
                 request.method === "GET" &&
                 url.pathname === "/api/accounts"
             ) {
+                const query = String(
+                    url.searchParams.get("query") || ""
+                ).trim().toLowerCase();
+
+                if (query) {
+                    if (!/^[a-z0-9_]+$/.test(query)) {
+                        sendJson(response, 400, {
+                            error: "Use letters, numbers, and underscores in the address search."
+                        });
+                        return;
+                    }
+
+                    if (query.length < 12) {
+                        sendJson(response, 400, {
+                            error: "Enter at least 12 characters to search addresses."
+                        });
+                        return;
+                    }
+
+                    const requestedSearchLimit = Number(
+                        url.searchParams.get("limit")
+                    );
+                    const searchLimit = Number.isInteger(requestedSearchLimit) &&
+                        requestedSearchLimit > 0
+                        ? Math.min(requestedSearchLimit, 100)
+                        : 20;
+                    const requestedSearchOffset = Number(
+                        url.searchParams.get("offset")
+                    );
+                    const searchOffset = Number.isInteger(requestedSearchOffset) &&
+                        requestedSearchOffset >= 0
+                        ? requestedSearchOffset
+                        : 0;
+                    const prefixEnd = query + "\uffff";
+
+                    const total = Number(database.prepare(
+                        "SELECT COUNT(*) AS total FROM accounts WHERE address >= ? AND address < ?"
+                    ).get(query, prefixEnd).total);
+
+                    const accounts = database.prepare(
+                        "SELECT address, first_seen_timestamp FROM accounts " +
+                        "WHERE address >= ? AND address < ? ORDER BY address LIMIT ? OFFSET ?"
+                    ).all(query, prefixEnd, searchLimit, searchOffset);
+
+                    sendJson(response, 200, {
+                        accounts,
+                        total
+                    });
+                    return;
+                }
+
                 const requestedLimit =
                     Number(
                         url.searchParams.get(
