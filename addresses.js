@@ -16,6 +16,8 @@ const addressesPerPage = 20;
 let currentPage = 1;
 let totalAddresses = 0;
 let loadedAddresses = [];
+let addressesLoadGeneration = 0;
+let addressSearchTimer = null;
 
 function shortAddress(address) {
     if (!address || address.length <= 32) {
@@ -117,7 +119,7 @@ function renderAddressesPage() {
         Math.min(currentPage * addressesPerPage, totalAddresses);
 
     addressResultCount.textContent = query
-        ? `${visibleAddresses.length} matching on this page`
+        ? `${totalAddresses.toLocaleString()} matching address${totalAddresses === 1 ? "" : "es"}`
         : `${firstAddress.toLocaleString()}–${lastAddress.toLocaleString()} of ${totalAddresses.toLocaleString()}`;
 
     pageNumber.textContent = `Page ${currentPage} of ${totalPages}`;
@@ -125,36 +127,68 @@ function renderAddressesPage() {
     nextPageButton.disabled = currentPage >= totalPages;
 }
 
-async function loadAddressesPage() {
+async function loadAddressesPage(
+    query = addressFilter.value.trim(),
+    generation = ++addressesLoadGeneration
+) {
     addressesPageList.innerHTML =
         '<p class="addresses-empty">Loading addresses…</p>';
-    addressResultCount.textContent = "Loading addresses…";
+    addressResultCount.textContent = query
+        ? "Searching indexed addresses…"
+        : "Loading addresses…";
     previousPageButton.disabled = true;
     nextPageButton.disabled = true;
 
     try {
         const offset = (currentPage - 1) * addressesPerPage;
+
+        if (query) {
+            const response = await fetchKeetaView(
+                "/api/accounts?query=" + encodeURIComponent(query) +
+                "&limit=" + addressesPerPage + "&offset=" + offset
+            );
+
+            if (!response.ok) {
+                throw new Error("Unable to search indexed addresses");
+            }
+
+            const result = await response.json();
+            if (generation !== addressesLoadGeneration) return;
+
+            loadedAddresses = Array.isArray(result.accounts)
+                ? result.accounts
+                : [];
+            totalAddresses = Number(result.total || 0);
+            renderAddressesPage();
+            return;
+        }
+
         const [accountsResponse, statusResponse] = await Promise.all([
             fetchKeetaView(
-                `http://localhost:3000/api/accounts?limit=${addressesPerPage}&offset=${offset}`
+                "/api/accounts?limit=" + addressesPerPage + "&offset=" + offset
             ),
-            fetchKeetaView("http://localhost:3000/api/status")
+            fetchKeetaView("/api/status")
         ]);
 
         if (!accountsResponse.ok || !statusResponse.ok) {
             throw new Error("Unable to load indexed addresses");
         }
 
-        loadedAddresses = await accountsResponse.json();
-        const status = await statusResponse.json();
-        totalAddresses = Number(status.accounts || 0);
+        const [accounts, status] = await Promise.all([
+            accountsResponse.json(),
+            statusResponse.json()
+        ]);
+        if (generation !== addressesLoadGeneration) return;
 
+        loadedAddresses = accounts;
+        totalAddresses = Number(status.accounts || 0);
         renderAddressesPage();
     } catch (error) {
+        if (generation !== addressesLoadGeneration) return;
         console.error("Error loading addresses page:", error);
         loadedAddresses = [];
         addressesPageList.innerHTML =
-            '<p class="addresses-empty">Unable to load addresses. Make sure the KeetaView API server is running.</p>';
+            '<p class="addresses-empty">Unable to load addresses. Please try again.</p>';
         addressResultCount.textContent = "Unavailable";
         pageNumber.textContent = "Page —";
         previousPageButton.disabled = true;
@@ -162,12 +196,34 @@ async function loadAddressesPage() {
     }
 }
 
-addressFilter.addEventListener("input", renderAddressesPage);
+function scheduleAddressSearch() {
+    currentPage = 1;
+    const generation = ++addressesLoadGeneration;
+    clearTimeout(addressSearchTimer);
+
+    const query = addressFilter.value.trim();
+    if (!query) {
+        loadAddressesPage("", generation);
+        return;
+    }
+
+    addressesPageList.innerHTML =
+        '<p class="addresses-empty">Searching indexed addresses…</p>';
+    addressResultCount.textContent = "Searching indexed addresses…";
+    pageNumber.textContent = "Page 1";
+    previousPageButton.disabled = true;
+    nextPageButton.disabled = true;
+
+    addressSearchTimer = setTimeout(() => {
+        loadAddressesPage(query, generation);
+    }, 250);
+}
+
+addressFilter.addEventListener("input", scheduleAddressSearch);
 
 previousPageButton.addEventListener("click", () => {
     if (currentPage > 1) {
         currentPage -= 1;
-        addressFilter.value = "";
         loadAddressesPage();
         document.querySelector(".addresses-list-card")?.scrollIntoView({
             behavior: "smooth",
@@ -182,7 +238,6 @@ nextPageButton.addEventListener("click", () => {
 
     if (currentPage < totalPages) {
         currentPage += 1;
-        addressFilter.value = "";
         loadAddressesPage();
         document.querySelector(".addresses-list-card")?.scrollIntoView({
             behavior: "smooth",
