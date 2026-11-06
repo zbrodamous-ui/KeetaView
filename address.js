@@ -239,127 +239,109 @@ addressActivityList.innerHTML = "";
 
 const response =
     await fetchKeetaView(
-        `http://localhost:3000/api/transfers?limit=100&address=${encodeURIComponent(
-            address
-        )}`
+        "/api/operations?limit=100&offset=0&address=" +
+        encodeURIComponent(address)
     );
 
 if (!response.ok) {
     throw new Error(
-        `API request failed: ${response.status}`
+        "Address activity request failed: " + response.status
     );
 }
 
-const transfers =
-    await response.json();
+const activityResult = await response.json();
+const operations = Array.isArray(activityResult.operations)
+    ? activityResult.operations
+    : [];
 
-if (transfers.length === 0) {
+if (operations.length === 0) {
     addressActivityList.textContent =
         "No indexed activity found for this address.";
 } else {
-    for (const transfer of transfers) {
-        const sender =
-            transfer.sender ||
-            "Not available";
+    for (const operation of operations) {
+        const sender = operation.sender || "Not available";
+        const recipient = operation.recipient || "Not available";
+        const shortSender = sender === "Not available"
+            ? sender
+            : sender.slice(0, 12) + "..." + sender.slice(-6);
+        const shortRecipient = recipient === "Not available"
+            ? recipient
+            : recipient.slice(0, 12) + "..." + recipient.slice(-6);
 
-        const recipient =
-            transfer.recipient ||
-            "Not available";
-
-        const shortSender =
-            sender === "Not available"
-                ? sender
-                : `${sender.slice(0, 12)}...${sender.slice(-6)}`;
-
-        const shortRecipient =
-            recipient === "Not available"
-                ? recipient
-                : `${recipient.slice(0, 12)}...${recipient.slice(-6)}`;
-
-        let tokenDisplay;
-
-        try {
-            tokenDisplay =
-                await getAddressTokenDisplay(
-                    transfer.token,
-                    transfer.amount
+        let amountLabel = "—";
+        if (operation.token && operation.amount !== undefined && operation.amount !== null) {
+            try {
+                const tokenDisplay = await getAddressTokenDisplay(
+                    operation.token,
+                    operation.amount
                 );
-        } catch (error) {
-            console.warn(
-                "Unable to format address activity token:",
-                transfer.token,
-                error
-            );
+                amountLabel = tokenDisplay.amount + " " + tokenDisplay.name;
+            } catch (error) {
+                console.warn(
+                    "Unable to format address activity token:",
+                    operation.token,
+                    error
+                );
 
-            tokenDisplay = {
-                amount:
-                    BigInt(
-                        transfer.amount
-                    ).toLocaleString(),
-                name:
-                    `${transfer.token.slice(0, 8)}...`
-            };
+                let fallbackAmount = String(operation.amount);
+                try {
+                    fallbackAmount = BigInt(fallbackAmount).toLocaleString();
+                } catch {
+                    // Keep the raw amount when it is not an integer string.
+                }
+
+                const tokenAddress = String(operation.token);
+                const tokenName = tokenAddress.length > 16
+                    ? tokenAddress.slice(0, 8) + "..."
+                    : tokenAddress;
+                amountLabel = fallbackAmount + " " + tokenName;
+            }
         }
 
-        const activityRow =
-            document.createElement("div");
+        const blockHash = String(operation.block_hash || "");
+        const operationIndex = Number(operation.operation_index || 0);
+        const activityRow = document.createElement("div");
+        activityRow.className = "activity-row transaction-row";
+        activityRow.innerHTML =
+            '<span><a href="block.html?hash=' +
+                encodeURIComponent(blockHash) + '">' +
+                escapeKeetaHtml(blockHash.slice(0, 8)) + '...</a></span>' +
+            '<span>' +
+                escapeKeetaHtml(timeAgo(new Date(operation.timestamp))) +
+            '</span>' +
+            '<span>' +
+                escapeKeetaHtml(operation.operation_type || "Operation") +
+            '</span>' +
+            '<span title="' + escapeKeetaHtml(sender) + '">' +
+                escapeKeetaHtml(addressActivityLabel(
+                    operation.sender_username,
+                    operation.sender_name,
+                    shortSender
+                )) +
+            '</span>' +
+            '<span title="' + escapeKeetaHtml(recipient) + '">' +
+                escapeKeetaHtml(addressActivityLabel(
+                    operation.recipient_username,
+                    operation.recipient_name,
+                    shortRecipient
+                )) +
+            '</span>' +
+            '<span>' + escapeKeetaHtml(amountLabel) + '</span>';
 
-        activityRow.className =
-            "activity-row transaction-row";
-
-        activityRow.innerHTML = `
-            <span>
-                <a href="block.html?hash=${encodeURIComponent(
-                    transfer.block_hash
-                )}">
-                    ${escapeKeetaHtml(transfer.block_hash.slice(0, 8))}...
-                </a>
-            </span>
-
-            <span>
-                ${timeAgo(
-                    new Date(
-                        transfer.timestamp
-                    )
-                )}
-            </span>
-
-            <span>Transfer</span>
-
-            <span title="${escapeKeetaHtml(sender)}">${escapeKeetaHtml(addressActivityLabel(transfer.sender_username, transfer.sender_name, shortSender))}</span>
-
-            <span title="${escapeKeetaHtml(recipient)}">${escapeKeetaHtml(addressActivityLabel(transfer.recipient_username, transfer.recipient_name, shortRecipient))}</span>
-
-            <span>
-                ${escapeKeetaHtml(tokenDisplay.amount)}
-                ${escapeKeetaHtml(tokenDisplay.name)}
-            </span>
-        `;
-
-        activityRow
-            .querySelectorAll("a")
-            .forEach((link) => {
-                link.addEventListener(
-                    "click",
-                    (event) => {
-                        event.stopPropagation();
-                    }
-                );
+        activityRow.querySelectorAll("a").forEach((link) => {
+            link.addEventListener("click", (event) => {
+                event.stopPropagation();
             });
+        });
 
-        activityRow.addEventListener(
-            "click",
-            () => {
-                window.location.href =
-                    `transaction.html?block=${encodeURIComponent(
-                        transfer.block_hash
-                    )}&operation=${transfer.operation_index}`;
-            }
-        );
+        activityRow.addEventListener("click", () => {
+            window.location.href =
+                "transaction.html?block=" +
+                encodeURIComponent(blockHash) +
+                "&operation=" + operationIndex;
+        });
 
-        addressActivityList.appendChild(
-            activityRow
-        );
+        addressActivityList.appendChild(activityRow);
     }
 }
 
