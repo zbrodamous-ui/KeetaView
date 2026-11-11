@@ -29,6 +29,16 @@ export function openFaucetRequests(
             .run(now - retentionDays * 24 * 60 * 60 * 1000);
     };
 
+    cleanupExpired(Date.now());
+    const cleanupTimer = setInterval(() => {
+        try {
+            cleanupExpired(Date.now());
+        } catch (error) {
+            console.error("Faucet interest cleanup failed:", error.message);
+        }
+    }, 60 * 60 * 1000);
+    cleanupTimer.unref();
+
     return {
         submit(address, now = Date.now()) {
             if (typeof address !== "string") {
@@ -89,6 +99,7 @@ export function openFaucetRequests(
             }
         },
         close() {
+            clearInterval(cleanupTimer);
             db.close();
         }
     };
