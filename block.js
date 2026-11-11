@@ -226,7 +226,14 @@ async function loadBlock() {
             title.textContent = operationTitle(operation);
             card.appendChild(title);
 
-            const operationFields = operation.toJSON?.() || {};
+            let operationFields = {};
+            try {
+                if (typeof operation.toJSON === "function") {
+                    operationFields = operation.toJSON() || {};
+                }
+            } catch (error) {
+                console.warn("Unable to read operation details:", error);
+            }
             const visibleFields = Object.entries(operationFields)
                 .filter(([key, value]) =>
                     key !== "type" &&
