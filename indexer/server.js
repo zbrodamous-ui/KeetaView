@@ -5,6 +5,7 @@ import { monitorEventLoopDelay } from "node:perf_hooks";
 import { validStatusData } from "./status-snapshot.js";
 import { createAnalyticsCache } from "./analytics-cache.js";
 import { openDeveloperKeys, developerResponse } from "./developer-api.js";
+import { openFaucetRequests } from "./faucet-requests.js";
 import { openAccountNames } from "./account-names.js";
 import { transactionSearch } from "./transaction-search.js";
 import fs from "node:fs";
@@ -46,6 +47,10 @@ const apiActivityFile =
 
 const accountNames = openAccountNames(path.join(dataDirectory, "account-names.db"));
 const developerKeys = openDeveloperKeys(path.join(dataDirectory, "developer-api.db"));
+const faucetRequests = openFaucetRequests(
+    path.join(dataDirectory, "faucet-requests.db"),
+    { dailyRequestCap: 50, retentionDays: 90 }
+);
 
 let lastApiActivityWrite = 0;
 const activityRoutes = new Map();
@@ -53,7 +58,8 @@ const diagnosticRoutes = new Set([
     "/api/v1/status", "/api/v1/block", "/api/v1/transfers",
     "/api/status", "/api/market", "/api/analytics", "/api/blocks",
     "/api/accounts", "/api/transfers", "/api/operations", "/api/assets",
-    "/api/transaction", "/api/account-label", "/api/anchors", "/api/anchors/search"
+    "/api/transaction", "/api/account-label", "/api/anchors", "/api/anchors/search",
+    "/api/faucet/interest"
 ]);
 
 function markApiActivity(pathname) {
@@ -827,6 +833,34 @@ const server =
                     );
                 }
 
+                return;
+            }
+
+            if (
+                request.method === "POST" &&
+                url.pathname === "/api/faucet/interest"
+            ) {
+                if (!isSameOriginTrafficRequest(request)) {
+                    sendJson(response, 403, { error: "Same-origin requests only." });
+                    return;
+                }
+
+                try {
+                    const body = await readJsonBody(request, 2048);
+                    if (body?.consent !== true) {
+                        sendJson(response, 400, { error: "Consent is required to store this address for the pilot." });
+                        return;
+                    }
+
+                    const result = faucetRequests.submit(body.address);
+                    sendJson(
+                        response,
+                        result.status,
+                        result.data ? { data: result.data } : { error: result.error }
+                    );
+                } catch (error) {
+                    sendJson(response, 400, { error: error.message || "Could not record the request." });
+                }
                 return;
             }
 
