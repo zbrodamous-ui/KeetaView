@@ -53,8 +53,10 @@ export function openFaucetRequests(
                 if (existing) {
                     db.exec("COMMIT");
                     return {
-                        status: 409,
-                        error: "This address is already on the interest list."
+                        status: 202,
+                        data: {
+                            message: "Thanks—if this address is eligible, it is recorded for pilot evaluation. No KTA was sent, and this does not guarantee a future payout."
+                        }
                     };
                 }
 
@@ -76,9 +78,9 @@ export function openFaucetRequests(
 
                 db.exec("COMMIT");
                 return {
-                    status: 201,
+                    status: 202,
                     data: {
-                        message: "Your address was added to the interest list. No KTA was sent, and this does not guarantee a future payout."
+                        message: "Thanks—if this address is eligible, it is recorded for pilot evaluation. No KTA was sent, and this does not guarantee a future payout."
                     }
                 };
             } catch (error) {
