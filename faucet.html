@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mainnet Faucet Pilot | KeetaView</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <style>
+        .faucet-shell {
+            width: min(100% - 36px, 980px);
+            margin: 34px auto 80px;
+        }
+        .faucet-card {
+            padding: clamp(24px, 5vw, 52px);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 24px;
+            background: rgba(7, 10, 15, 0.88);
+            box-shadow: 0 20px 70px rgba(0, 0, 0, 0.25);
+        }
+        .faucet-card h1 {
+            margin: 8px 0 12px;
+            font-size: clamp(2rem, 5vw, 3.4rem);
+        }
+        .faucet-intro, .faucet-note, .faucet-privacy {
+            color: #aeb6c2;
+            line-height: 1.6;
+        }
+        .faucet-note {
+            margin: 24px 0;
+            padding: 16px 18px;
+            border: 1px solid rgba(110, 168, 254, 0.28);
+            border-radius: 14px;
+            background: rgba(110, 168, 254, 0.08);
+        }
+        .faucet-form {
+            display: grid;
+            gap: 16px;
+            margin-top: 28px;
+        }
+        .faucet-form label {
+            display: grid;
+            gap: 8px;
+            font-weight: 600;
+        }
+        .faucet-form input[type="text"] {
+            width: 100%;
+            min-height: 50px;
+            padding: 12px 14px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            background: #0b0e14;
+            color: white;
+            font: inherit;
+        }
+        .faucet-consent {
+            display: flex !important;
+            grid-template-columns: auto 1fr;
+            align-items: start;
+            gap: 10px !important;
+            color: #c6ccd5;
+            font-size: 0.94rem;
+            font-weight: 400 !important;
+            line-height: 1.5;
+        }
+        .faucet-consent input {
+            margin-top: 4px;
+        }
+        .faucet-form button {
+            justify-self: start;
+            min-height: 46px;
+            padding: 0 20px;
+            border: 0;
+            border-radius: 12px;
+            background: #2d8cff;
+            color: #fff;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .faucet-form button:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
+        #faucetFeedback {
+            min-height: 1.5em;
+            margin: 0;
+            color: #aeb6c2;
+        }
+        #faucetFeedback[data-state="success"] { color: #56d69a; }
+        #faucetFeedback[data-state="error"] { color: #ff8d8d; }
+        .faucet-privacy { margin: 24px 0 0; font-size: 0.9rem; }
+        @media (max-width: 640px) {
+            .faucet-shell { width: min(100% - 22px, 980px); margin-top: 18px; }
+            .faucet-card { border-radius: 18px; }
+            .faucet-form button { width: 100%; }
+        }
+    </style>
+</head>
+
+<body class="home-page">
+<header class="home-header">
+    <a class="home-brand" href="index.html">Keeta<span>View</span></a>
+    <div class="home-header-actions">
+        <a href="index.html" class="header-control">Back to Explorer</a>
+        <button id="themeToggle" class="header-control" type="button" aria-label="Switch appearance">Theme</button>
+    </div>
+</header>
+
+<nav class="home-navigation" aria-label="Main navigation">
+    <a href="index.html">Home</a>
+    <a href="blocks.html">Blocks</a>
+    <a href="transactions.html">Transactions</a>
+    <a href="addresses.html">Addresses</a>
+    <a href="assets.html">Assets</a>
+    <a href="analytics.html">Analytics</a>
+    <a href="status.html">Status</a>
+    <a href="developers.html">Developers</a>
+    <a href="faucet.html" class="active">Faucet Pilot</a>
+</nav>
+
+<main class="faucet-shell">
+    <section class="faucet-card" aria-labelledby="faucetTitle">
+        <p class="home-eyebrow">COMMUNITY PILOT</p>
+        <h1 id="faucetTitle">Mainnet Faucet Interest</h1>
+        <p class="faucet-intro">
+            We’re exploring whether a small Keeta mainnet faucet would help people get started.
+            Register an address to show interest while we evaluate the idea.
+        </p>
+
+        <div class="faucet-note" role="note">
+            <strong>Prototype only:</strong> this form does not send KTA, and joining the list
+            does not guarantee a future payout. Never enter a seed phrase or private key.
+        </div>
+
+        <form id="faucetInterestForm" class="faucet-form">
+            <label for="faucetAddress">
+                Keeta mainnet address
+                <input
+                    id="faucetAddress"
+                    name="address"
+                    type="text"
+                    placeholder="keeta_…"
+                    autocomplete="off"
+                    autocapitalize="none"
+                    spellcheck="false"
+                    maxlength="106"
+                    required
+                >
+            </label>
+
+            <label class="faucet-consent">
+                <input id="faucetConsent" type="checkbox" required>
+                <span>I understand no KTA is sent or promised, and consent to storing this public address for up to 90 days while the pilot is evaluated.</span>
+            </label>
+
+            <button id="faucetSubmit" type="submit">Register interest</button>
+            <p id="faucetFeedback" role="status" aria-live="polite"></p>
+        </form>
+
+        <p class="faucet-privacy">
+            To limit spam, the pilot accepts one entry per address and up to 50 entries per day.
+            This prototype does not collect an email address or send transactions.
+        </p>
+    </section>
+</main>
+
+<script src="shared.js"></script>
+<script src="background.js"></script>
+<script src="faucet.js"></script>
+</body>
+</html>
